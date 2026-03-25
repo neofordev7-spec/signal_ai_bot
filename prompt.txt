@@ -1,0 +1,202 @@
+You are a senior full-stack engineer and system architect.
+
+Your task is to generate a COMPLETE, PRODUCTION-READY Telegram Mini App project for a hackathon (SolveIt Hackathon, Tashkent).
+
+The app must be a real, working MVP that can be deployed immediately.
+
+---
+
+🎯 PRODUCT IDEA:
+A platform where users report real-world problems (urban, social, education, infrastructure), and the system uses AI to convert these into structured insights for organizations.
+
+---
+
+⚠️ IMPORTANT:
+- Generate FULL project code (not explanations)
+- Use clean architecture
+- Code must be modular and scalable
+- Include ALL files with folder structure
+- Write code like a senior engineer (no placeholders)
+
+---
+
+# 🏗 PROJECT STRUCTURE:
+
+Create a monorepo with:
+
+/project-root
+  /frontend (Next.js + Tailwind)
+  /backend (Node.js + Express)
+  /database (schema + seed)
+  /bot (Telegram bot)
+  /docs
+
+---
+
+# 📱 TELEGRAM MINI APP REQUIREMENTS:
+
+- Telegram WebApp SDK integration
+- Auto-auth using Telegram user data
+- “Open App” button from bot
+- WebApp initData validation in backend
+
+---
+
+# 🧩 CORE FEATURES:
+
+## USER SIDE:
+- Submit problem:
+  - title
+  - description
+  - category (AI-generated)
+  - location (lat/lng)
+  - optional image upload
+- View list of problems
+- Upvote system
+- Trending problems
+
+---
+
+## ADMIN DASHBOARD:
+- View all problems
+- Filter by category/location
+- Analytics:
+  - top issues
+  - sentiment breakdown
+  - problem clusters
+
+---
+
+## 🤖 AI FEATURES (MANDATORY):
+Implement using API (OpenAI or Google AI):
+
+- Auto category classification
+- Sentiment analysis
+- Urgency detection
+- Problem clustering (simple grouping logic is ok)
+
+---
+
+# 🎨 FRONTEND:
+
+Use:
+- Next.js (App Router)
+- TailwindCSS
+- Zustand or Context API
+
+Pages:
+- Home (feed)
+- Submit Problem
+- Problem Details
+- Dashboard
+
+Requirements:
+- Mobile-first (Telegram style)
+- Clean UI (minimal, modern)
+- Loading states
+- Error handling
+
+---
+
+# ⚙️ BACKEND:
+
+Use:
+- Node.js + Express
+
+Features:
+- REST API
+- Auth middleware (Telegram)
+- File upload (multer)
+- AI service layer
+- Validation (Joi or Zod)
+
+Routes:
+- POST /problems
+- GET /problems
+- POST /vote
+- GET /analytics
+
+---
+
+# 🗄 DATABASE:
+
+Use PostgreSQL.
+
+Provide:
+- SQL schema
+- Relations
+- Indexing
+
+Main table:
+problems:
+- id
+- user_id
+- title
+- description
+- category
+- sentiment
+- urgency
+- lat
+- lng
+- votes
+- created_at
+
+---
+
+# 🤖 TELEGRAM BOT:
+
+Use:
+- Node.js (Telegraf)
+
+Features:
+- /start command
+- Button to open WebApp
+- Basic user tracking
+
+---
+
+# 🔐 SECURITY:
+
+- Validate Telegram initData on backend
+- Sanitize inputs
+- Rate limiting
+
+---
+
+# 🚀 DEVOPS:
+
+Provide:
+- .env.example
+- Dockerfile (frontend + backend)
+- docker-compose.yml
+- Deployment guide (Render / Railway / VPS)
+
+---
+
+# 📦 OUTPUT FORMAT:
+
+1. Folder structure (tree view)
+2. Then FULL CODE for every file
+3. Separate files clearly:
+   // file: path/to/file
+
+---
+
+# 💡 BONUS (if possible):
+- Add heatmap (frontend mock)
+- Add “Top problems this week”
+- Add badge system
+
+---
+
+# ❗️ RULES:
+
+- DO NOT skip any part
+- DO NOT explain unless necessary
+- DO NOT summarize
+- WRITE FULL WORKING CODE
+
+---
+
+Build this like a real startup MVP that can win a hackathon.
+Focus on speed, clarity, and impact.
