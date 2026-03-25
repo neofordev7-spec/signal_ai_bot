@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { config } from '../config/env';
-import { db } from '../config/db';
+import { getDB, saveDB } from '../config/db';
 import { validateInitData, TelegramUser } from '../utils/telegram';
 
 declare global {
@@ -13,28 +13,29 @@ declare global {
 }
 
 function upsertUser(user: TelegramUser): number {
-  const stmt = db.prepare(
-    `INSERT INTO users (telegram_id, username, first_name, last_name)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT (telegram_id) DO UPDATE SET
-       username = COALESCE(excluded.username, users.username),
-       first_name = COALESCE(excluded.first_name, users.first_name),
-       last_name = COALESCE(excluded.last_name, users.last_name)
-     RETURNING id`
+  const db = getDB();
+  // Try insert
+  db.run(
+    `INSERT OR IGNORE INTO users (telegram_id, username, first_name, last_name) VALUES (?, ?, ?, ?)`,
+    [user.id, user.username || null, user.first_name, user.last_name || null]
   );
-  const result = stmt.get(user.id, user.username, user.first_name, user.last_name) as { id: number };
-  return result.id;
+  // Update existing
+  db.run(
+    `UPDATE users SET username = COALESCE(?, username), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name) WHERE telegram_id = ?`,
+    [user.username || null, user.first_name, user.last_name || null, user.id]
+  );
+  const result = db.exec(`SELECT id FROM users WHERE telegram_id = ${user.id}`);
+  saveDB();
+  return result[0].values[0][0] as number;
 }
 
 export async function telegramAuth(req: Request, res: Response, next: NextFunction) {
   if (config.skipTelegramAuth) {
-    // Ensure dev user exists
-    db.prepare(
-      `INSERT OR IGNORE INTO users (telegram_id, username, first_name) VALUES (100002, 'dev_user', 'Dev')`
-    ).run();
-    const devUser = db.prepare('SELECT id FROM users WHERE telegram_id = 100002').get() as { id: number };
+    const db = getDB();
+    db.run(`INSERT OR IGNORE INTO users (telegram_id, username, first_name) VALUES (100002, 'dev_user', 'Dev')`);
+    const result = db.exec('SELECT id FROM users WHERE telegram_id = 100002');
     req.telegramUser = { id: 100002, first_name: 'Dev', username: 'dev_user' };
-    req.dbUserId = devUser.id;
+    req.dbUserId = result[0].values[0][0] as number;
     return next();
   }
 
@@ -58,12 +59,11 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('tma ')) {
     if (config.skipTelegramAuth) {
-      db.prepare(
-        `INSERT OR IGNORE INTO users (telegram_id, username, first_name) VALUES (100002, 'dev_user', 'Dev')`
-      ).run();
-      const devUser = db.prepare('SELECT id FROM users WHERE telegram_id = 100002').get() as { id: number };
+      const db = getDB();
+      db.run(`INSERT OR IGNORE INTO users (telegram_id, username, first_name) VALUES (100002, 'dev_user', 'Dev')`);
+      const result = db.exec('SELECT id FROM users WHERE telegram_id = 100002');
       req.telegramUser = { id: 100002, first_name: 'Dev', username: 'dev_user' };
-      req.dbUserId = devUser.id;
+      req.dbUserId = result[0].values[0][0] as number;
     }
     return next();
   }
@@ -73,8 +73,9 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
 export async function adminAuth(req: Request, res: Response, next: NextFunction) {
   await telegramAuth(req, res, () => {
     if (!req.dbUserId) return res.status(401).json({ error: 'Unauthorized' });
-    const result = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(req.dbUserId) as { is_admin: number } | undefined;
-    if (!result?.is_admin) {
+    const db = getDB();
+    const result = db.exec(`SELECT is_admin FROM users WHERE id = ${req.dbUserId}`);
+    if (!result.length || !result[0].values[0][0]) {
       return res.status(403).json({ error: 'Admin access required' });
     }
     next();
