@@ -1,11 +1,11 @@
-import initSqlJs, { Database } from 'sql.js';
+import initSqlJs from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import { config } from './env';
 
-let db: Database;
+let db: any;
 
-export async function initDB(): Promise<Database> {
+export async function initDB() {
   if (db) return db;
 
   const dbDir = path.dirname(config.dbPath);
@@ -15,7 +15,6 @@ export async function initDB(): Promise<Database> {
 
   const SQL = await initSqlJs();
 
-  // Load existing DB or create new
   if (fs.existsSync(config.dbPath)) {
     const buffer = fs.readFileSync(config.dbPath);
     db = new SQL.Database(buffer);
@@ -23,7 +22,6 @@ export async function initDB(): Promise<Database> {
     db = new SQL.Database();
   }
 
-  // Create tables
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +32,6 @@ export async function initDB(): Promise<Database> {
       is_admin INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
-
     CREATE TABLE IF NOT EXISTS problems (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
@@ -51,7 +48,6 @@ export async function initDB(): Promise<Database> {
       vote_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
-
     CREATE TABLE IF NOT EXISTS votes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
@@ -70,8 +66,8 @@ export async function initDB(): Promise<Database> {
   return db;
 }
 
-export function getDB(): Database {
-  if (!db) throw new Error('Database not initialized. Call initDB() first.');
+export function getDB(): any {
+  if (!db) throw new Error('Database not initialized');
   return db;
 }
 
@@ -82,5 +78,4 @@ export function saveDB() {
   fs.writeFileSync(config.dbPath, buffer);
 }
 
-// Auto-save every 30 seconds
 setInterval(saveDB, 30000);
