@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SignalAI</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: var(--tg-theme-bg-color, #ffffff);
+      --text: var(--tg-theme-text-color, #000000);
+      --hint: var(--tg-theme-hint-color, #999999);
+      --link: var(--tg-theme-link-color, #2481cc);
+      --btn: var(--tg-theme-button-color, #2481cc);
+      --btn-text: var(--tg-theme-button-text-color, #ffffff);
+      --secondary: var(--tg-theme-secondary-bg-color, #f0f0f0);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 70px;
+    }
+
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+    /* Header */
+    .header { margin-bottom: 16px; }
+    .header h1 { font-size: 22px; font-weight: 700; }
+    .header p { font-size: 13px; color: var(--hint); margin-top: 2px; }
+
+    /* Tabs / Nav */
+    .nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg); border-top: 1px solid #e5e5e5;
+      display: flex; justify-content: space-around; z-index: 100;
+    }
+    .nav a {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 16px; font-size: 11px; color: var(--hint);
+      text-decoration: none; font-weight: 500; transition: color 0.2s;
+    }
+    .nav a.active { color: var(--btn); }
+    .nav a span.icon { font-size: 20px; margin-bottom: 2px; }
+
+    /* Cards */
+    .card {
+      background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
+      padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.2s;
+    }
+    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .card-body { flex: 1; min-width: 0; }
+    .card-title { font-size: 15px; font-weight: 600; margin: 6px 0 4px; line-height: 1.3; }
+    .card-desc { font-size: 13px; color: var(--hint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-meta { display: flex; gap: 10px; margin-top: 10px; font-size: 11px; color: var(--hint); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+    .badge-infrastructure { background: #fff7ed; color: #c2410c; }
+    .badge-education { background: #eff6ff; color: #1d4ed8; }
+    .badge-healthcare { background: #fef2f2; color: #dc2626; }
+    .badge-safety { background: #fefce8; color: #a16207; }
+    .badge-environment { background: #f0fdf4; color: #15803d; }
+    .badge-transport { background: #faf5ff; color: #7e22ce; }
+    .badge-social { background: #fdf2f8; color: #be185d; }
+    .badge-government { background: #eef2ff; color: #4338ca; }
+    .badge-other, .badge-uncategorized { background: #f3f4f6; color: #6b7280; }
+
+    /* Urgency bars */
+    .urgency { display: flex; align-items: center; gap: 4px; }
+    .urgency-bars { display: flex; gap: 2px; }
+    .urgency-bar { width: 5px; height: 12px; border-radius: 2px; background: #e5e7eb; }
+    .urgency-bar.active-1 { background: #22c55e; }
+    .urgency-bar.active-2 { background: #84cc16; }
+    .urgency-bar.active-3 { background: #eab308; }
+    .urgency-bar.active-4 { background: #f97316; }
+    .urgency-bar.active-5 { background: #ef4444; }
+    .urgency-label { font-size: 11px; font-weight: 500; }
+
+    /* Vote button */
+    .vote-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 20px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      background: var(--secondary); color: var(--text); flex-shrink: 0;
+    }
+    .vote-btn.voted { background: var(--btn); color: var(--btn-text); }
+    .vote-btn:disabled { opacity: 0.5; }
+
+    /* Filters */
+    .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-btn {
+      flex-shrink: 0; padding: 6px 12px; border-radius: 20px; border: none;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      background: var(--secondary); color: var(--text); transition: all 0.2s;
+    }
+    .filter-btn.active { background: var(--btn); color: var(--btn-text); }
+
+    .sort-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .sort-bar span { font-size: 13px; color: var(--hint); }
+    .sort-btns { display: flex; gap: 4px; }
+    .sort-btn {
+      padding: 4px 10px; border: none; border-radius: 6px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      background: transparent; color: var(--hint);
+    }
+    .sort-btn.active { background: var(--btn); color: var(--btn-text); }
+
+    /* Trending */
+    .trending { margin-bottom: 14px; }
+    .trending h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .trending-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+    .trending-scroll::-webkit-scrollbar { display: none; }
+    .trending-item {
+      flex-shrink: 0; min-width: 170px; max-width: 200px;
+      background: linear-gradient(135deg, #fff7ed, #fef2f2);
+      border: 1px solid #fed7aa; border-radius: 10px; padding: 10px;
+      cursor: pointer; text-decoration: none; color: var(--text);
+    }
+    .trending-item p { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trending-item .meta { font-size: 11px; color: var(--hint); margin-top: 4px; }
+
+    /* Form */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .form-input {
+      width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; background: #fff; color: var(--text); outline: none; transition: border 0.2s;
+    }
+    .form-input:focus { border-color: var(--btn); }
+    textarea.form-input { resize: none; min-height: 100px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .submit-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      background: var(--btn); color: var(--btn-text);
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+    }
+    .submit-btn:disabled { opacity: 0.5; }
+    .form-hint { text-align: center; font-size: 11px; color: var(--hint); margin-top: 8px; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+
+    /* Detail page */
+    .back-btn { display: inline-flex; align-items: center; gap: 4px; color: var(--link); font-size: 13px; margin-bottom: 12px; cursor: pointer; border: none; background: none; }
+    .detail-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 16px; }
+    .detail-title { font-size: 18px; font-weight: 700; margin: 8px 0; }
+    .detail-desc { font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+    .ai-box { background: var(--secondary); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+    .ai-box h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ai-item span { display: block; font-size: 11px; color: var(--hint); }
+    .ai-item p { font-size: 14px; font-weight: 500; }
+    .keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+    .keyword { padding: 3px 10px; background: #fff; border-radius: 20px; font-size: 11px; }
+
+    /* Dashboard */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 12px; }
+    .stat-card .value { font-size: 24px; font-weight: 700; }
+    .stat-card .label { font-size: 11px; color: var(--hint); }
+    .stat-card .value.blue { color: var(--btn); }
+    .stat-card .value.green { color: #22c55e; }
+    .stat-card .value.orange { color: #f97316; }
+    .stat-card .value.purple { color: #7e22ce; }
+
+    .chart-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+    .chart-card h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bar-emoji { width: 18px; font-size: 14px; }
+    .bar-label { width: 80px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; }
+    .bar-fill { height: 8px; background: var(--btn); border-radius: 4px; transition: width 0.5s; }
+    .bar-count { width: 30px; text-align: right; font-size: 12px; color: var(--hint); }
+
+    .sentiment-bar { display: flex; border-radius: 10px; overflow: hidden; height: 14px; margin-bottom: 10px; }
+    .sentiment-segment { transition: width 0.5s; }
+    .sentiment-legend { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sentiment-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--hint); }
+    .sentiment-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .weekly-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .weekly-rank { font-size: 13px; font-weight: 700; color: var(--hint); width: 24px; }
+    .weekly-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .weekly-votes { font-size: 12px; color: var(--hint); }
+
+    /* Loading & Empty */
+    .loading { display: flex; justify-content: center; padding: 40px; }
+    .spinner { width: 30px; height: 30px; border: 3px solid var(--secondary); border-top-color: var(--btn); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 40px 0; }
+    .empty .emoji { font-size: 40px; margin-bottom: 8px; }
+    .empty p { font-size: 13px; color: var(--hint); }
+
+    /* Map */
+    #heatmap { height: 280px; border-radius: 10px; overflow: hidden; }
+
+    /* Page visibility */
+    .page { display: none; }
+    .page.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page active">
+    <div class="header">
+      <h1>SignalAI</h1>
+      <p id="greeting">Shahardagi muammolarni xabar bering</p>
+    </div>
+    <div id="trending" class="trending"></div>
+    <div id="filters" class="filters"></div>
+    <div class="sort-bar">
+      <span id="total-count"></span>
+      <div class="sort-btns" id="sort-btns"></div>
+    </div>
+    <div id="problem-list"></div>
+  </div>
+
+  <!-- SUBMIT PAGE -->
+  <div id="page-submit" class="page">
+    <div class="header">
+      <h1>Muammo yuborish</h1>
+      <p>Shahardagi muammoni tavsiflang, AI uni tahlil qiladi</p>
+    </div>
+    <div id="submit-error"></div>
+    <form id="submit-form">
+      <div class="form-group">
+        <label>Sarlavha *</label>
+        <input type="text" id="f-title" class="form-input" placeholder="Muammoni qisqacha yozing" maxlength="300" required>
+      </div>
+      <div class="form-group">
+        <label>Tavsif *</label>
+        <textarea id="f-desc" class="form-input" placeholder="Muammoni batafsil tavsiflang..." maxlength="5000" required></textarea>
+      </div>
+      <div class="form-row form-group">
+        <div>
+          <label>Kenglik (lat)</label>
+          <input type="number" step="any" id="f-lat" class="form-input" placeholder="41.2995">
+        </div>
+        <div>
+          <label>Uzunlik (lng)</label>
+          <input type="number" step="any" id="f-lng" class="form-input" placeholder="69.2401">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Rasm (ixtiyoriy)</label>
+        <input type="file" id="f-image" accept="image/*" class="form-input">
+      </div>
+      <button type="submit" id="submit-btn" class="submit-btn">Muammoni yuborish</button>
+      <p class="form-hint">AI avtomatik ravishda kategoriya, sentiment va dolzarblikni aniqlaydi</p>
+    </form>
+  </div>
+
+  <!-- DETAIL PAGE -->
+  <div id="page-detail" class="page">
+    <button class="back-btn" onclick="navigate('home')">&#8592; Orqaga</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dashboard" class="page">
+    <div class="header">
+      <h1>Analitika</h1>
+      <p>SignalAI Dashboard</p>
+    </div>
+    <div id="dashboard-content"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="#" onclick="navigate('home')" id="nav-home" class="active">
+    <span class="icon">🏠</span>Asosiy
+  </a>
+  <a href="#" onclick="navigate('submit')" id="nav-submit">
+    <span class="icon">✏️</span>Yuborish
+  </a>
+  <a href="#" onclick="navigate('dashboard')" id="nav-dashboard">
+    <span class="icon">📊</span>Analitika
+  </a>
+</nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ===== CONFIG =====
+const API = window.location.origin + '/api';
+const tg = window.Telegram?.WebApp;
+let currentUser = null;
+
+// Init Telegram
+if (tg) {
+  tg.ready();
+  tg.expand();
+  currentUser = tg.initDataUnsafe?.user;
+}
+
+function getAuthHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (tg?.initData) h['Authorization'] = 'tma ' + tg.initData;
+  return h;
+}
+
+// ===== NAVIGATION =====
+let currentPage = 'home';
+
+function navigate(page, data) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+
+  currentPage = page;
+
+  if (page === 'home') loadProblems();
+  if (page === 'detail') loadDetail(data);
+  if (page === 'dashboard') loadDashboard();
+}
+
+// ===== HELPERS =====
+const CATEGORY_EMOJI = {
+  infrastructure: '🏗️', education: '📚', healthcare: '🏥', safety: '🛡️',
+  environment: '🌿', transport: '🚌', social: '👥', government: '🏛️', other: '📋', uncategorized: '❓'
+};
+const CATEGORY_LABEL = {
+  infrastructure: 'Infratuzilma', education: "Ta'lim", healthcare: "Sog'liq", safety: 'Xavfsizlik',
+  environment: 'Atrof-muhit', transport: 'Transport', social: 'Ijtimoiy', government: 'Davlat', other: 'Boshqa', uncategorized: 'Tasniflanmagan'
+};
+const URGENCY_LABEL = { 1: 'Past', 2: "O'rta past", 3: "O'rtacha", 4: 'Yuqori', 5: 'Juda yuqori' };
+const URGENCY_COLOR = { 1: '#22c55e', 2: '#84cc16', 3: '#eab308', 4: '#f97316', 5: '#ef4444' };
+const SENTIMENT_COLOR = { positive: '#4ade80', negative: '#f87171', neutral: '#9ca3af', urgent: '#fb923c', unknown: '#d1d5db' };
+const SENTIMENT_LABEL = { positive: 'Ijobiy', negative: 'Salbiy', neutral: 'Neytral', urgent: 'Shoshilinch', unknown: 'Noma\'lum' };
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now() - new Date(d+'Z').getTime()) / 1000);
+  if (s < 60) return 'hozirgina';
+  if (s < 3600) return Math.floor(s/60) + ' daqiqa oldin';
+  if (s < 86400) return Math.floor(s/3600) + ' soat oldin';
+  if (s < 604800) return Math.floor(s/86400) + ' kun oldin';
+  return new Date(d).toLocaleDateString('uz-UZ');
+}
+
+function urgencyBars(u) {
+  let html = '<div class="urgency"><div class="urgency-bars">';
+  for (let i = 1; i <= 5; i++) {
+    html += `<div class="urgency-bar ${i <= u ? 'active-' + u : ''}"></div>`;
+  }
+  html += `</div><span class="urgency-label" style="color:${URGENCY_COLOR[u]}">${URGENCY_LABEL[u]}</span></div>`;
+  return html;
+}
+
+function parseKeywords(kw) {
+  if (!kw) return [];
+  if (Array.isArray(kw)) return kw;
+  try { return JSON.parse(kw); } catch { return []; }
+}
+
+// ===== HOME PAGE =====
+let activeCategory = '';
+let activeSort = 'new';
+
+function buildFilters() {
+  const cats = [
+    { v: '', l: 'Barchasi' },
+    { v: 'infrastructure', l: '🏗️ Infratuzilma' }, { v: 'education', l: "📚 Ta'lim" },
+    { v: 'healthcare', l: "🏥 Sog'liq" }, { v: 'safety', l: '🛡️ Xavfsizlik' },
+    { v: 'environment', l: '🌿 Atrof-muhit' }, { v: 'transport', l: '🚌 Transport' },
+    { v: 'social', l: '👥 Ijtimoiy' }, { v: 'government', l: '🏛️ Davlat' },
+  ];
+  document.getElementById('filters').innerHTML = cats.map(c =>
+    `<button class="filter-btn ${activeCategory === c.v ? 'active' : ''}" onclick="setCategory('${c.v}')">${c.l}</button>`
+  ).join('');
+
+  const sorts = [{ v: 'new', l: 'Yangi' }, { v: 'trending', l: 'Trending' }, { v: 'urgent', l: 'Dolzarb' }];
+  document.getElementById('sort-btns').innerHTML = sorts.map(s =>
+    `<button class="sort-btn ${activeSort === s.v ? 'active' : ''}" onclick="setSort('${s.v}')">${s.l}</button>`
+  ).join('');
+}
+
+function setCategory(c) { activeCategory = c; buildFilters(); loadProblems(); }
+function setSort(s) { activeSort = s; buildFilters(); loadProblems(); }
+
+async function loadProblems() {
+  const list = document.getElementById('problem-list');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  if (currentUser) {
+    document.getElementById('greeting').textContent = `Salom, ${currentUser.first_name}!`;
+  }
+
+  buildFilters();
+
+  try {
+    const params = new URLSearchParams({ sort: activeSort });
+    if (activeCategory) params.set('category', activeCategory);
+
+    const [mainRes, trendRes] = await Promise.all([
+      fetch(API + '/problems?' + params, { headers: getAuthHeaders() }).then(r => r.json()),
+      fetch(API + '/problems?sort=trending&limit=5', { headers: getAuthHeaders() }).then(r => r.json()),
+    ]);
+
+    document.getElementById('total-count').textContent = mainRes.total + ' ta muammo';
+
+    // Trending
+    const trendEl = document.getElementById('trending');
+    if (trendRes.problems?.length > 0) {
+      trendEl.innerHTML = '<h3>🔥 Trending muammolar</h3><div class="trending-scroll">' +
+        trendRes.problems.slice(0, 5).map(p => `
+          <div class="trending-item" onclick="navigate('detail',${p.id})">
+            <p>${p.title}</p>
+            <div class="meta">👍 ${p.vote_count} · ${CATEGORY_LABEL[p.category] || p.category}</div>
+          </div>`).join('') + '</div>';
+    } else { trendEl.innerHTML = ''; }
+
+    // Problem list
+    if (!mainRes.problems?.length) {
+      list.innerHTML = '<div class="empty"><div class="emoji">🔍</div><p>Muammolar topilmadi</p></div>';
+      return;
+    }
+
+    list.innerHTML = mainRes.problems.map(p => `
+      <div class="card" onclick="navigate('detail',${p.id})">
+        <div class="card-header">
+          <div class="card-body">
+            <div class="badges">
+              <span class="badge badge-${p.category}">${CATEGORY_EMOJI[p.category] || '📋'} ${CATEGORY_LABEL[p.category] || p.category}</span>
+              ${urgencyBars(p.urgency)}
+            </div>
+            <div class="card-title">${p.title}</div>
+            <div class="card-desc">${p.description}</div>
+          </div>
+          <button class="vote-btn ${p.user_voted ? 'voted' : ''}" onclick="event.stopPropagation();doVote(${p.id},this)">
+            👍 ${p.vote_count}
+          </button>
+        </div>
+        <div class="card-meta">
+          <span>${p.first_name || 'Anonim'}</span>
+          <span>${timeAgo(p.created_at)}</span>
+          ${p.lat ? '<span>📍 Joylashuv</span>' : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="empty"><div class="emoji">😕</div><p>Yuklanmadi</p></div>';
+  }
+}
+
+// ===== VOTE =====
+async function doVote(id, btn) {
+  btn.disabled = true;
+  try {
+    const res = await fetch(API + '/vote', {
+      method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify({ problem_id: id })
+    }).then(r => r.json());
+
+    btn.textContent = '👍 ' + res.voteCount;
+    btn.classList.toggle('voted', res.voted);
+    tg?.HapticFeedback?.impactOccurred('light');
+  } catch (e) { console.error(e); }
+  btn.disabled = false;
+}
+
+// ===== SUBMIT =====
+document.getElementById('submit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const errEl = document.getElementById('submit-error');
+  errEl.innerHTML = '';
+
+  const title = document.getElementById('f-title').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  if (!title || !desc) { errEl.innerHTML = '<div class="error-msg">Sarlavha va tavsif to\'ldirilishi shart</div>'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'AI tahlil qilmoqda...';
+
+  try {
+    let imageUrl;
+    const imageFile = document.getElementById('f-image').files[0];
+    if (imageFile) {
+      const fd = new FormData();
+      fd.append('image', imageFile);
+      const h = {};
+      if (tg?.initData) h['Authorization'] = 'tma ' + tg.initData;
+      const upRes = await fetch(API + '/upload', { method: 'POST', headers: h, body: fd }).then(r => r.json());
+      imageUrl = upRes.url;
+    }
+
+    const body = { title, description: desc };
+    const lat = parseFloat(document.getElementById('f-lat').value);
+    const lng = parseFloat(document.getElementById('f-lng').value);
+    if (!isNaN(lat)) body.lat = lat;
+    if (!isNaN(lng)) body.lng = lng;
+    if (imageUrl) body.image_url = imageUrl;
+
+    await fetch(API + '/problems', {
+      method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify(body)
+    }).then(r => { if (!r.ok) throw new Error('Xatolik'); return r.json(); });
+
+    tg?.HapticFeedback?.notificationOccurred('success');
+    document.getElementById('submit-form').reset();
+    navigate('home');
+  } catch (err) {
+    errEl.innerHTML = '<div class="error-msg">Xatolik yuz berdi. Qayta urinib ko\'ring.</div>';
+    tg?.HapticFeedback?.notificationOccurred('error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Muammoni yuborish';
+});
+
+// ===== DETAIL =====
+async function loadDetail(id) {
+  const el = document.getElementById('detail-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try {
+    const p = await fetch(API + '/problems/' + id, { headers: getAuthHeaders() }).then(r => r.json());
+    const kws = parseKeywords(p.keywords);
+
+    el.innerHTML = `
+      <div class="detail-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="badges">
+            <span class="badge badge-${p.category}">${CATEGORY_EMOJI[p.category] || '📋'} ${CATEGORY_LABEL[p.category] || p.category}</span>
+            ${urgencyBars(p.urgency)}
+          </div>
+          <button class="vote-btn ${p.user_voted ? 'voted' : ''}" onclick="doVote(${p.id},this)">👍 ${p.vote_count}</button>
+        </div>
+        <h2 class="detail-title">${p.title}</h2>
+        <p class="detail-desc">${p.description}</p>
+        ${p.image_url ? `<img src="${p.image_url}" style="width:100%;border-radius:10px;margin-bottom:14px;max-height:300px;object-fit:cover">` : ''}
+        <div class="ai-box">
+          <h3>🤖 AI Tahlili</h3>
+          <div class="ai-grid">
+            <div class="ai-item"><span>Sentiment</span><p style="color:${SENTIMENT_COLOR[p.sentiment]}">${SENTIMENT_LABEL[p.sentiment] || p.sentiment}</p></div>
+            <div class="ai-item"><span>Dolzarblik</span><p>${p.urgency}/5</p></div>
+            <div class="ai-item"><span>Status</span><p>${p.status}</p></div>
+            <div class="ai-item"><span>Ovozlar</span><p>${p.vote_count}</p></div>
+          </div>
+          ${kws.length ? '<div class="keywords">' + kws.map(k => `<span class="keyword">${k}</span>`).join('') + '</div>' : ''}
+        </div>
+        ${p.lat && p.lng ? `<div class="ai-box"><h3>📍 Joylashuv</h3><p style="font-size:12px;color:var(--hint)">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</p></div>` : ''}
+        <div style="font-size:12px;color:var(--hint);display:flex;gap:8px;margin-top:8px">
+          <span>${p.first_name || 'Anonim'}</span>
+          <span>·</span>
+          <span>${new Date(p.created_at+'Z').toLocaleDateString('uz-UZ', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+      </div>`;
+  } catch (e) {
+    el.innerHTML = '<div class="empty"><div class="emoji">😕</div><p>Muammo topilmadi</p></div>';
+  }
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  const el = document.getElementById('dashboard-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try {
+    const [analytics, problemsRes] = await Promise.all([
+      fetch(API + '/analytics', { headers: getAuthHeaders() }).then(r => r.json()),
+      fetch(API + '/problems?sort=trending', { headers: getAuthHeaders() }).then(r => r.json()),
+    ]);
+
+    const s = analytics.stats;
+    const totalSent = analytics.sentiments.reduce((a, b) => a + parseInt(b.count), 0) || 1;
+
+    let html = `
+      <div class="stats-grid">
+        <div class="stat-card"><div class="value blue">${s.total_problems}</div><div class="label">Jami muammolar</div></div>
+        <div class="stat-card"><div class="value green">${s.new_this_week}</div><div class="label">Bu hafta yangi</div></div>
+        <div class="stat-card"><div class="value orange">${parseFloat(s.avg_urgency).toFixed(1)}</div><div class="label">O'rtacha dolzarblik</div></div>
+        <div class="stat-card"><div class="value purple">${s.open_problems}</div><div class="label">Ochiq muammolar</div></div>
+      </div>`;
+
+    // Categories
+    html += '<div class="chart-card"><h2>Kategoriyalar</h2>';
+    const maxCat = Math.max(...analytics.categories.map(c => parseInt(c.count)), 1);
+    analytics.categories.forEach(c => {
+      const pct = (parseInt(c.count) / maxCat) * 100;
+      html += `<div class="bar-row">
+        <span class="bar-emoji">${CATEGORY_EMOJI[c.category] || '📋'}</span>
+        <span class="bar-label">${CATEGORY_LABEL[c.category] || c.category}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <span class="bar-count">${c.count}</span>
+      </div>`;
+    });
+    html += '</div>';
+
+    // Sentiment
+    html += '<div class="chart-card"><h2>Sentiment tahlili</h2><div class="sentiment-bar">';
+    analytics.sentiments.forEach(s => {
+      const pct = (parseInt(s.count) / totalSent) * 100;
+      html += `<div class="sentiment-segment" style="width:${pct}%;background:${SENTIMENT_COLOR[s.sentiment] || '#d1d5db'}"></div>`;
+    });
+    html += '</div><div class="sentiment-legend">';
+    analytics.sentiments.forEach(s => {
+      html += `<div class="sentiment-item"><div class="sentiment-dot" style="background:${SENTIMENT_COLOR[s.sentiment] || '#d1d5db'}"></div>${SENTIMENT_LABEL[s.sentiment] || s.sentiment}: ${s.count}</div>`;
+    });
+    html += '</div></div>';
+
+    // Weekly top
+    if (analytics.weeklyTop?.length) {
+      html += '<div class="chart-card"><h2>🔥 Haftalik top muammolar</h2>';
+      analytics.weeklyTop.forEach((p, i) => {
+        html += `<div class="weekly-row"><span class="weekly-rank">#${i+1}</span><span class="weekly-title">${p.title}</span><span class="weekly-votes">👍 ${p.vote_count}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    // Keywords
+    if (analytics.topKeywords?.length) {
+      html += '<div class="chart-card"><h2>Kalit so\'zlar</h2><div class="keywords">';
+      analytics.topKeywords.forEach(k => {
+        html += `<span class="keyword">${k.keyword} (${k.count})</span>`;
+      });
+      html += '</div></div>';
+    }
+
+    // Heatmap
+    html += '<div class="chart-card"><h2>🗺️ Muammolar xaritasi</h2><div id="heatmap"></div></div>';
+
+    el.innerHTML = html;
+
+    // Init map
+    setTimeout(() => {
+      const mapEl = document.getElementById('heatmap');
+      if (!mapEl) return;
+      const map = L.map('heatmap').setView([41.2995, 69.2401], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OSM'
+      }).addTo(map);
+
+      (problemsRes.problems || []).forEach(p => {
+        if (p.lat && p.lng) {
+          L.circleMarker([p.lat, p.lng], {
+            radius: 6 + (p.vote_count || 0) * 0.4,
+            fillColor: URGENCY_COLOR[p.urgency] || '#eab308',
+            color: '#fff', weight: 2, fillOpacity: 0.8,
+          }).addTo(map).bindPopup(`<b>${p.title}</b><br><small>${CATEGORY_LABEL[p.category] || p.category} | 👍 ${p.vote_count}</small>`);
+        }
+      });
+    }, 100);
+
+  } catch (e) {
+    el.innerHTML = '<div class="empty"><div class="emoji">🔒</div><p>' + (e.message || 'Analitika yuklanmadi') + '</p><p style="font-size:11px;color:var(--hint);margin-top:4px">Admin ruxsati kerak</p></div>';
+  }
+}
+
+// ===== INIT =====
+loadProblems();
+</script>
+</body>
+</html>
