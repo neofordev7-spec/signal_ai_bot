@@ -33,11 +33,15 @@ async function start() {
 
       await ctx.reply(
         `Assalomu alaykum, ${tgUser.first_name}! 👋\n\n` +
-        `🔍 *SignalAI* — shahardagi muammolarni xabar bering!\n\n` +
-        `📝 Muammo yuboring\n` +
-        `👀 Boshqalar muammosini ko'ring\n` +
-        `👍 Ovoz bering\n\n` +
-        `Ilovani ochish uchun pastdagi tugmani bosing 👇`,
+        `🧠 *SignalAI* — bu sun'iy intellekt yordamida shahardagi muammolarni aniqlash va tahlil qilish uchun yaratilgan platformadir.\n\n` +
+        `🎯 *Nima qila olasiz?*\n\n` +
+        `📝 Shahardagi muammoni xabar bering — yo'l chuqurlari, elektr uzilishi, suv muammosi va boshqalar\n` +
+        `🤖 AI avtomatik ravishda muammoni tahlil qiladi — kategoriya, dolzarblik va sentiment aniqlaydi\n` +
+        `👀 Boshqa odamlar yuborgan muammolarni ko'ring\n` +
+        `👍 Eng muhim muammolarga ovoz bering — tashkilotlar e'tibor bersin!\n` +
+        `📊 Analitika dashboardida eng ko'p uchraydigan muammolarni kuzating\n\n` +
+        `🏆 _SolveIt Hackathon — Toshkent loyihasi_\n\n` +
+        `Boshlash uchun pastdagi tugmani bosing 👇`,
         {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
