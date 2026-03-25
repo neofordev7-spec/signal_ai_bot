@@ -1,23 +1,21 @@
 import { Telegraf, Markup } from 'telegraf';
-import { Pool } from 'pg';
+import Database from 'better-sqlite3';
 
-export function createBot(token: string, webappUrl: string, pool: Pool) {
+export function createBot(token: string, webappUrl: string, db: Database.Database) {
   const bot = new Telegraf(token);
 
   bot.command('start', async (ctx) => {
     const tgUser = ctx.from;
 
-    // Upsert user
     try {
-      await pool.query(
+      db.prepare(
         `INSERT INTO users (telegram_id, username, first_name, last_name)
-         VALUES ($1, $2, $3, $4)
+         VALUES (?, ?, ?, ?)
          ON CONFLICT (telegram_id) DO UPDATE SET
-           username = COALESCE(EXCLUDED.username, users.username),
-           first_name = COALESCE(EXCLUDED.first_name, users.first_name),
-           last_name = COALESCE(EXCLUDED.last_name, users.last_name)`,
-        [tgUser.id, tgUser.username, tgUser.first_name, tgUser.last_name]
-      );
+           username = COALESCE(excluded.username, users.username),
+           first_name = COALESCE(excluded.first_name, users.first_name),
+           last_name = COALESCE(excluded.last_name, users.last_name)`
+      ).run(tgUser.id, tgUser.username, tgUser.first_name, tgUser.last_name);
     } catch (err) {
       console.error('Failed to upsert user:', err);
     }

@@ -1,72 +1,63 @@
-import { pool } from '../config/db';
+import { db } from '../config/db';
 
 export async function getAnalytics() {
-  const [
-    categoryStats,
-    sentimentStats,
-    urgencyStats,
-    topProblems,
-    totalStats,
-    weeklyTop,
-  ] = await Promise.all([
-    pool.query(
-      `SELECT category, COUNT(*) as count
-       FROM problems
-       GROUP BY category
-       ORDER BY count DESC`
-    ),
-    pool.query(
-      `SELECT sentiment, COUNT(*) as count
-       FROM problems
-       GROUP BY sentiment
-       ORDER BY count DESC`
-    ),
-    pool.query(
-      `SELECT urgency, COUNT(*) as count
-       FROM problems
-       GROUP BY urgency
-       ORDER BY urgency DESC`
-    ),
-    pool.query(
-      `SELECT p.id, p.title, p.category, p.vote_count, p.urgency, p.created_at
-       FROM problems p
-       ORDER BY p.vote_count DESC
-       LIMIT 10`
-    ),
-    pool.query(
-      `SELECT
-         COUNT(*) as total_problems,
-         COUNT(CASE WHEN status = 'open' THEN 1 END) as open_problems,
-         COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved_problems,
-         COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new_this_week,
-         COALESCE(AVG(urgency), 0) as avg_urgency
-       FROM problems`
-    ),
-    pool.query(
-      `SELECT p.id, p.title, p.category, p.vote_count, p.urgency
-       FROM problems p
-       WHERE p.created_at > NOW() - INTERVAL '7 days'
-       ORDER BY p.vote_count DESC
-       LIMIT 5`
-    ),
-  ]);
+  const categoryStats = db.prepare(
+    `SELECT category, COUNT(*) as count FROM problems GROUP BY category ORDER BY count DESC`
+  ).all();
 
-  // Simple keyword clustering
-  const keywordResult = await pool.query(
-    `SELECT unnest(keywords) as keyword, COUNT(*) as count
+  const sentimentStats = db.prepare(
+    `SELECT sentiment, COUNT(*) as count FROM problems GROUP BY sentiment ORDER BY count DESC`
+  ).all();
+
+  const urgencyStats = db.prepare(
+    `SELECT urgency, COUNT(*) as count FROM problems GROUP BY urgency ORDER BY urgency DESC`
+  ).all();
+
+  const topProblems = db.prepare(
+    `SELECT id, title, category, vote_count, urgency, created_at
+     FROM problems ORDER BY vote_count DESC LIMIT 10`
+  ).all();
+
+  const totalStats = db.prepare(
+    `SELECT
+       COUNT(*) as total_problems,
+       COUNT(CASE WHEN status = 'open' THEN 1 END) as open_problems,
+       COUNT(CASE WHEN status = 'resolved' THEN 1 END) as resolved_problems,
+       COUNT(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 END) as new_this_week,
+       COALESCE(AVG(urgency), 0) as avg_urgency
+     FROM problems`
+  ).get();
+
+  const weeklyTop = db.prepare(
+    `SELECT id, title, category, vote_count, urgency
      FROM problems
-     GROUP BY keyword
-     ORDER BY count DESC
-     LIMIT 20`
-  );
+     WHERE created_at > datetime('now', '-7 days')
+     ORDER BY vote_count DESC LIMIT 5`
+  ).all();
+
+  // Keyword aggregation - parse JSON keywords and count
+  const allProblems = db.prepare('SELECT keywords FROM problems').all() as { keywords: string }[];
+  const keywordMap: Record<string, number> = {};
+  for (const row of allProblems) {
+    try {
+      const kws = JSON.parse(row.keywords || '[]') as string[];
+      for (const kw of kws) {
+        keywordMap[kw] = (keywordMap[kw] || 0) + 1;
+      }
+    } catch { /* skip invalid */ }
+  }
+  const topKeywords = Object.entries(keywordMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([keyword, count]) => ({ keyword, count: String(count) }));
 
   return {
-    categories: categoryStats.rows,
-    sentiments: sentimentStats.rows,
-    urgencyLevels: urgencyStats.rows,
-    topProblems: topProblems.rows,
-    stats: totalStats.rows[0],
-    weeklyTop: weeklyTop.rows,
-    topKeywords: keywordResult.rows,
+    categories: categoryStats,
+    sentiments: sentimentStats,
+    urgencyLevels: urgencyStats,
+    topProblems,
+    stats: totalStats,
+    weeklyTop,
+    topKeywords,
   };
 }

@@ -1,4 +1,4 @@
-import { pool } from '../config/db';
+import { db } from '../config/db';
 import { CreateProblemInput, ProblemsQuery } from '../validators/problem.validator';
 import { analyzeProblem } from './ai.service';
 import { sanitizeString } from '../utils/sanitize';
@@ -11,7 +11,7 @@ export interface Problem {
   category: string;
   sentiment: string;
   urgency: number;
-  keywords: string[];
+  keywords: string;
   lat: number | null;
   lng: number | null;
   image_url: string | null;
@@ -20,7 +20,7 @@ export interface Problem {
   created_at: string;
   first_name?: string;
   username?: string;
-  user_voted?: boolean;
+  user_voted?: number;
 }
 
 export async function createProblem(
@@ -31,7 +31,6 @@ export async function createProblem(
   const title = sanitizeString(input.title);
   const description = sanitizeString(input.description);
 
-  // AI analysis (with fallback)
   let aiResult = { category: 'uncategorized', sentiment: 'unknown', urgency: 3, keywords: [] as string[] };
   try {
     aiResult = await analyzeProblem(title, description);
@@ -39,41 +38,40 @@ export async function createProblem(
     console.error('AI analysis failed, using defaults:', err);
   }
 
-  const result = await pool.query(
+  const stmt = db.prepare(
     `INSERT INTO problems (user_id, title, description, category, sentiment, urgency, keywords, lat, lng, image_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING *`,
-    [
-      userId,
-      title,
-      description,
-      aiResult.category,
-      aiResult.sentiment,
-      aiResult.urgency,
-      aiResult.keywords,
-      input.lat || null,
-      input.lng || null,
-      imageUrl || null,
-    ]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     RETURNING *`
   );
 
-  return result.rows[0];
+  const result = stmt.get(
+    userId,
+    title,
+    description,
+    aiResult.category,
+    aiResult.sentiment,
+    aiResult.urgency,
+    JSON.stringify(aiResult.keywords),
+    input.lat || null,
+    input.lng || null,
+    imageUrl || null,
+  ) as Problem;
+
+  return result;
 }
 
 export async function getProblems(query: ProblemsQuery, currentUserId?: number): Promise<{ problems: Problem[]; total: number }> {
   const conditions: string[] = [];
   const params: any[] = [];
-  let paramIdx = 1;
 
   if (query.category) {
-    conditions.push(`p.category = $${paramIdx++}`);
+    conditions.push('p.category = ?');
     params.push(query.category);
   }
 
   if (query.search) {
-    conditions.push(`(p.title ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx})`);
-    params.push(`%${query.search}%`);
-    paramIdx++;
+    conditions.push('(p.title LIKE ? OR p.description LIKE ?)');
+    params.push(`%${query.search}%`, `%${query.search}%`);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -92,84 +90,78 @@ export async function getProblems(query: ProblemsQuery, currentUserId?: number):
 
   const offset = (query.page - 1) * query.limit;
 
-  const countResult = await pool.query(`SELECT COUNT(*) FROM problems p ${where}`, params);
-  const total = parseInt(countResult.rows[0].count, 10);
+  const countStmt = db.prepare(`SELECT COUNT(*) as count FROM problems p ${where}`);
+  const countResult = countStmt.get(...params) as { count: number };
+  const total = countResult.count;
 
   const voteJoin = currentUserId
-    ? `LEFT JOIN votes v ON v.problem_id = p.id AND v.user_id = $${paramIdx++}`
+    ? 'LEFT JOIN votes v ON v.problem_id = p.id AND v.user_id = ?'
     : '';
-  if (currentUserId) params.push(currentUserId);
+  const voteSelect = currentUserId ? ', (v.id IS NOT NULL) as user_voted' : ', 0 as user_voted';
 
-  const voteSelect = currentUserId ? ', (v.id IS NOT NULL) as user_voted' : ', FALSE as user_voted';
+  const queryParams = [...params];
+  if (currentUserId) queryParams.push(currentUserId);
+  queryParams.push(query.limit, offset);
 
-  params.push(query.limit, offset);
-
-  const result = await pool.query(
+  const stmt = db.prepare(
     `SELECT p.*, u.first_name, u.username ${voteSelect}
      FROM problems p
      JOIN users u ON u.id = p.user_id
      ${voteJoin}
      ${where}
      ORDER BY ${orderBy}
-     LIMIT $${paramIdx++} OFFSET $${paramIdx}`,
-    params
+     LIMIT ? OFFSET ?`
   );
 
-  return { problems: result.rows, total };
+  const problems = stmt.all(...queryParams) as Problem[];
+
+  return { problems, total };
 }
 
 export async function getProblemById(id: number, currentUserId?: number): Promise<Problem | null> {
   const params: any[] = [id];
   let voteJoin = '';
-  let voteSelect = ', FALSE as user_voted';
+  let voteSelect = ', 0 as user_voted';
 
   if (currentUserId) {
-    voteJoin = 'LEFT JOIN votes v ON v.problem_id = p.id AND v.user_id = $2';
+    voteJoin = 'LEFT JOIN votes v ON v.problem_id = p.id AND v.user_id = ?';
     voteSelect = ', (v.id IS NOT NULL) as user_voted';
     params.push(currentUserId);
   }
 
-  const result = await pool.query(
+  const stmt = db.prepare(
     `SELECT p.*, u.first_name, u.username ${voteSelect}
      FROM problems p
      JOIN users u ON u.id = p.user_id
      ${voteJoin}
-     WHERE p.id = $1`,
-    params
+     WHERE p.id = ?`
   );
 
-  return result.rows[0] || null;
+  // id must be first param for WHERE
+  const reorderedParams = currentUserId ? [id, currentUserId] : [id];
+  const result = stmt.get(...reorderedParams) as Problem | undefined;
+
+  return result || null;
 }
 
 export async function toggleVote(userId: number, problemId: number): Promise<{ voted: boolean; voteCount: number }> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const existing = await client.query(
-      'SELECT id FROM votes WHERE user_id = $1 AND problem_id = $2',
-      [userId, problemId]
-    );
+  const toggleTransaction = db.transaction(() => {
+    const existing = db.prepare('SELECT id FROM votes WHERE user_id = ? AND problem_id = ?').get(userId, problemId);
 
     let voted: boolean;
-    if (existing.rows.length > 0) {
-      await client.query('DELETE FROM votes WHERE user_id = $1 AND problem_id = $2', [userId, problemId]);
-      await client.query('UPDATE problems SET vote_count = vote_count - 1 WHERE id = $1', [problemId]);
+    if (existing) {
+      db.prepare('DELETE FROM votes WHERE user_id = ? AND problem_id = ?').run(userId, problemId);
+      db.prepare('UPDATE problems SET vote_count = vote_count - 1 WHERE id = ?').run(problemId);
       voted = false;
     } else {
-      await client.query('INSERT INTO votes (user_id, problem_id) VALUES ($1, $2)', [userId, problemId]);
-      await client.query('UPDATE problems SET vote_count = vote_count + 1 WHERE id = $1', [problemId]);
+      db.prepare('INSERT INTO votes (user_id, problem_id) VALUES (?, ?)').run(userId, problemId);
+      db.prepare('UPDATE problems SET vote_count = vote_count + 1 WHERE id = ?').run(problemId);
       voted = true;
     }
 
-    const result = await client.query('SELECT vote_count FROM problems WHERE id = $1', [problemId]);
-    await client.query('COMMIT');
+    const result = db.prepare('SELECT vote_count FROM problems WHERE id = ?').get(problemId) as { vote_count: number };
+    return { voted, voteCount: result.vote_count };
+  });
 
-    return { voted, voteCount: result.rows[0].vote_count };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return toggleTransaction();
 }

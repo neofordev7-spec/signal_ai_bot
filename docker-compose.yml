@@ -1,37 +1,18 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: eldorbot
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/eldorbot
+      DB_PATH: /app/data/signalai.db
       PORT: "3001"
       NODE_ENV: production
       BOT_TOKEN: ${BOT_TOKEN}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       SKIP_TELEGRAM_AUTH: ${SKIP_TELEGRAM_AUTH:-false}
       WEBAPP_URL: ${WEBAPP_URL:-http://localhost:3000}
-    depends_on:
-      db:
-        condition: service_healthy
+    volumes:
+      - dbdata:/app/data
 
   frontend:
     build: ./frontend
@@ -45,10 +26,9 @@ services:
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       WEBAPP_URL: ${WEBAPP_URL:-http://localhost:3000}
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/eldorbot
-    depends_on:
-      db:
-        condition: service_healthy
+      DB_PATH: /app/data/signalai.db
+    volumes:
+      - dbdata:/app/data
 
 volumes:
-  pgdata:
+  dbdata:
