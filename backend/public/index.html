@@ -6,68 +6,122 @@
   <title>SignalAI</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: var(--tg-theme-bg-color, #ffffff);
-      --text: var(--tg-theme-text-color, #000000);
-      --hint: var(--tg-theme-hint-color, #999999);
-      --link: var(--tg-theme-link-color, #2481cc);
-      --btn: var(--tg-theme-button-color, #2481cc);
-      --btn-text: var(--tg-theme-button-text-color, #ffffff);
-      --secondary: var(--tg-theme-secondary-bg-color, #f0f0f0);
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #818cf8;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --sidebar-bg: #1e1b4b;
+      --sidebar-text: #c7d2fe;
+      --sidebar-active: #6366f1;
+      --success: #10b981;
+      --success-light: #d1fae5;
+      --warning: #f59e0b;
+      --warning-light: #fef3c7;
+      --danger: #f43f5e;
+      --danger-light: #ffe4e6;
+      --info: #3b82f6;
+      --info-light: #dbeafe;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding-bottom: 70px;
+      overflow-x: hidden;
     }
 
-    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+    /* ===== LAYOUT ===== */
+    .app { display: flex; min-height: 100vh; }
 
-    /* Header */
-    .header { margin-bottom: 16px; }
-    .header h1 { font-size: 22px; font-weight: 700; }
-    .header p { font-size: 13px; color: var(--hint); margin-top: 2px; }
-
-    /* Tabs / Nav */
-    .nav {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--bg); border-top: 1px solid #e5e5e5;
-      display: flex; justify-content: space-around; z-index: 100;
+    .sidebar {
+      width: 72px; background: var(--sidebar-bg); position: fixed; top: 0; left: 0;
+      height: 100vh; display: flex; flex-direction: column; align-items: center;
+      padding: 16px 0; z-index: 200; transition: width 0.3s;
     }
-    .nav a {
-      display: flex; flex-direction: column; align-items: center;
-      padding: 8px 16px; font-size: 11px; color: var(--hint);
-      text-decoration: none; font-weight: 500; transition: color 0.2s;
-    }
-    .nav a.active { color: var(--btn); }
-    .nav a span.icon { font-size: 20px; margin-bottom: 2px; }
 
-    /* Cards */
+    .sidebar-logo {
+      width: 44px; height: 44px; background: var(--primary); border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 24px; cursor: pointer;
+    }
+
+    .sidebar-nav { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0 10px; }
+
+    .sidebar-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 10px 4px; border-radius: 12px; cursor: pointer;
+      color: var(--sidebar-text); font-size: 10px; font-weight: 500;
+      transition: all 0.2s; text-decoration: none; border: none; background: none;
+    }
+    .sidebar-item:hover { background: rgba(99,102,241,0.15); color: #e0e7ff; }
+    .sidebar-item.active { background: var(--sidebar-active); color: #fff; }
+    .sidebar-item .icon { font-size: 22px; line-height: 1; }
+
+    .main-content {
+      flex: 1; margin-left: 72px; min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 16px 24px; position: sticky; top: 0; z-index: 100;
+    }
+    .topbar h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .topbar p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .content { padding: 20px 24px; }
+
+    /* ===== PAGE VISIBILITY ===== */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ===== STAT CARDS ===== */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+
+    .stat-card {
+      background: var(--card); border-radius: 16px; padding: 18px;
+      border: 1px solid var(--border); position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .stat-card.purple::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .stat-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+    .stat-card.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .stat-card.rose::before { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+
+    .stat-icon { font-size: 28px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 800; color: var(--text); }
+    .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; font-weight: 500; }
+    .stat-change { font-size: 11px; font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 3px; }
+    .stat-change.up { color: var(--success); }
+    .stat-change.down { color: var(--danger); }
+
+    /* ===== CARDS ===== */
     .card {
-      background: #fff; border: 1px solid #f0f0f0; border-radius: 12px;
-      padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.2s;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 18px; margin-bottom: 14px;
     }
-    .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
 
-    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-    .card-body { flex: 1; min-width: 0; }
-    .card-title { font-size: 15px; font-weight: 600; margin: 6px 0 4px; line-height: 1.3; }
-    .card-desc { font-size: 13px; color: var(--hint); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .card-meta { display: flex; gap: 10px; margin-top: 10px; font-size: 11px; color: var(--hint); }
+    /* ===== GRID ===== */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 
-    /* Badges */
+    /* ===== BADGES ===== */
     .badge {
-      display: inline-flex; align-items: center; gap: 3px;
-      padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
     }
-    .badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-
     .badge-infrastructure { background: #fff7ed; color: #c2410c; }
     .badge-education { background: #eff6ff; color: #1d4ed8; }
     .badge-healthcare { background: #fef2f2; color: #dc2626; }
@@ -78,221 +132,296 @@
     .badge-government { background: #eef2ff; color: #4338ca; }
     .badge-other, .badge-uncategorized { background: #f3f4f6; color: #6b7280; }
 
-    /* Urgency bars */
+    /* Status badges */
+    .status-open { background: var(--warning-light); color: #92400e; }
+    .status-resolved { background: var(--success-light); color: #065f46; }
+    .status-in_progress { background: var(--info-light); color: #1e40af; }
+
+    /* ===== URGENCY ===== */
     .urgency { display: flex; align-items: center; gap: 4px; }
     .urgency-bars { display: flex; gap: 2px; }
-    .urgency-bar { width: 5px; height: 12px; border-radius: 2px; background: #e5e7eb; }
-    .urgency-bar.active-1 { background: #22c55e; }
-    .urgency-bar.active-2 { background: #84cc16; }
-    .urgency-bar.active-3 { background: #eab308; }
-    .urgency-bar.active-4 { background: #f97316; }
-    .urgency-bar.active-5 { background: #ef4444; }
-    .urgency-label { font-size: 11px; font-weight: 500; }
+    .urgency-bar { width: 5px; height: 14px; border-radius: 2px; background: #e2e8f0; }
+    .u-1 { background: #10b981; } .u-2 { background: #84cc16; }
+    .u-3 { background: #eab308; } .u-4 { background: #f97316; } .u-5 { background: #ef4444; }
 
-    /* Vote button */
+    /* ===== VOTE BTN ===== */
     .vote-btn {
       display: flex; align-items: center; gap: 5px;
-      padding: 6px 12px; border-radius: 20px; border: none;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-      background: var(--secondary); color: var(--text); flex-shrink: 0;
+      padding: 7px 14px; border-radius: 24px; border: 2px solid var(--border);
+      font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+      background: var(--card); color: var(--text); flex-shrink: 0;
     }
-    .vote-btn.voted { background: var(--btn); color: var(--btn-text); }
+    .vote-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .vote-btn.voted { background: var(--primary); color: #fff; border-color: var(--primary); }
     .vote-btn:disabled { opacity: 0.5; }
 
-    /* Filters */
-    .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+    /* ===== FEED CARD ===== */
+    .feed-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 18px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .feed-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-1px); }
+
+    .feed-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .feed-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .feed-user { font-size: 13px; font-weight: 600; color: var(--text); }
+    .feed-time { font-size: 11px; color: var(--text-secondary); }
+    .feed-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+    .feed-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .feed-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .feed-meta { display: flex; gap: 8px; align-items: center; }
+    .feed-loc { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 3px; }
+
+    /* ===== FILTERS ===== */
+    .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; }
     .filters::-webkit-scrollbar { display: none; }
     .filter-btn {
-      flex-shrink: 0; padding: 6px 12px; border-radius: 20px; border: none;
-      font-size: 12px; font-weight: 500; cursor: pointer;
-      background: var(--secondary); color: var(--text); transition: all 0.2s;
+      flex-shrink: 0; padding: 7px 14px; border-radius: 24px; border: 1.5px solid var(--border);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      background: var(--card); color: var(--text); transition: all 0.2s;
     }
-    .filter-btn.active { background: var(--btn); color: var(--btn-text); }
+    .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-    .sort-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .sort-bar span { font-size: 13px; color: var(--hint); }
+    .sort-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .sort-bar span { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
     .sort-btns { display: flex; gap: 4px; }
     .sort-btn {
-      padding: 4px 10px; border: none; border-radius: 6px;
-      font-size: 12px; font-weight: 500; cursor: pointer;
-      background: transparent; color: var(--hint);
+      padding: 5px 12px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      background: transparent; color: var(--text-secondary); transition: all 0.2s;
     }
-    .sort-btn.active { background: var(--btn); color: var(--btn-text); }
+    .sort-btn.active { background: var(--primary); color: #fff; }
 
-    /* Trending */
-    .trending { margin-bottom: 14px; }
-    .trending h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
-    .trending-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
-    .trending-scroll::-webkit-scrollbar { display: none; }
-    .trending-item {
-      flex-shrink: 0; min-width: 170px; max-width: 200px;
-      background: linear-gradient(135deg, #fff7ed, #fef2f2);
-      border: 1px solid #fed7aa; border-radius: 10px; padding: 10px;
-      cursor: pointer; text-decoration: none; color: var(--text);
-    }
-    .trending-item p { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .trending-item .meta { font-size: 11px; color: var(--hint); margin-top: 4px; }
-
-    /* Form */
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    /* ===== FORM ===== */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
     .form-input {
-      width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px;
-      font-size: 14px; background: #fff; color: var(--text); outline: none; transition: border 0.2s;
+      width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 12px;
+      font-size: 14px; background: var(--card); color: var(--text); outline: none;
+      transition: border 0.2s; font-family: inherit;
     }
-    .form-input:focus { border-color: var(--btn); }
-    textarea.form-input { resize: none; min-height: 100px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    textarea.form-input { resize: none; min-height: 110px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .submit-btn {
-      width: 100%; padding: 12px; border: none; border-radius: 10px;
-      background: var(--btn); color: var(--btn-text);
-      font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s; font-family: inherit;
+      box-shadow: 0 4px 14px rgba(99,102,241,0.3);
     }
+    .submit-btn:hover { opacity: 0.9; }
     .submit-btn:disabled { opacity: 0.5; }
-    .form-hint { text-align: center; font-size: 11px; color: var(--hint); margin-top: 8px; }
-    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+    .form-hint { text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 10px; }
+    .error-msg { background: var(--danger-light); border: 1px solid #fca5a5; color: var(--danger); padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; font-weight: 500; }
 
-    /* Detail page */
-    .back-btn { display: inline-flex; align-items: center; gap: 4px; color: var(--link); font-size: 13px; margin-bottom: 12px; cursor: pointer; border: none; background: none; }
-    .detail-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 16px; }
-    .detail-title { font-size: 18px; font-weight: 700; margin: 8px 0; }
-    .detail-desc { font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
-    .ai-box { background: var(--secondary); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
-    .ai-box h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
-    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .ai-item span { display: block; font-size: 11px; color: var(--hint); }
-    .ai-item p { font-size: 14px; font-weight: 500; }
-    .keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
-    .keyword { padding: 3px 10px; background: #fff; border-radius: 20px; font-size: 11px; }
+    /* ===== DETAIL ===== */
+    .back-btn { display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-size: 13px; margin-bottom: 14px; cursor: pointer; border: none; background: none; font-weight: 600; }
+    .detail-title { font-size: 20px; font-weight: 800; margin: 10px 0; line-height: 1.3; }
+    .detail-desc { font-size: 14px; line-height: 1.7; margin-bottom: 16px; color: var(--text); }
 
-    /* Dashboard */
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-    .stat-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 12px; }
-    .stat-card .value { font-size: 24px; font-weight: 700; }
-    .stat-card .label { font-size: 11px; color: var(--hint); }
-    .stat-card .value.blue { color: var(--btn); }
-    .stat-card .value.green { color: #22c55e; }
-    .stat-card .value.orange { color: #f97316; }
-    .stat-card .value.purple { color: #7e22ce; }
+    .ai-box { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border-radius: 14px; padding: 16px; margin-bottom: 16px; border: 1px solid #c7d2fe; }
+    .ai-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--primary-dark); }
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ai-item span { display: block; font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+    .ai-item p { font-size: 14px; font-weight: 700; margin-top: 2px; }
+    .keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .keyword { padding: 4px 12px; background: #fff; border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--primary-dark); border: 1px solid #c7d2fe; }
 
-    .chart-card { background: #fff; border: 1px solid #f0f0f0; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
-    .chart-card h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
-    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .bar-emoji { width: 18px; font-size: 14px; }
-    .bar-label { width: 80px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bar-track { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; }
-    .bar-fill { height: 8px; background: var(--btn); border-radius: 4px; transition: width 0.5s; }
-    .bar-count { width: 30px; text-align: right; font-size: 12px; color: var(--hint); }
+    /* ===== DASHBOARD CHARTS ===== */
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .bar-emoji { width: 20px; font-size: 14px; text-align: center; }
+    .bar-label { width: 85px; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 10px; border-radius: 5px; transition: width 0.6s ease; }
+    .bar-fill.purple { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .bar-count { width: 32px; text-align: right; font-size: 12px; color: var(--text-secondary); font-weight: 600; }
 
-    .sentiment-bar { display: flex; border-radius: 10px; overflow: hidden; height: 14px; margin-bottom: 10px; }
-    .sentiment-segment { transition: width 0.5s; }
-    .sentiment-legend { display: flex; flex-wrap: wrap; gap: 10px; }
-    .sentiment-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--hint); }
-    .sentiment-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .sentiment-bar { display: flex; border-radius: 10px; overflow: hidden; height: 16px; margin-bottom: 12px; }
+    .sentiment-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+    .sentiment-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+    .sentiment-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    .weekly-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .weekly-rank { font-size: 13px; font-weight: 700; color: var(--hint); width: 24px; }
-    .weekly-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .weekly-votes { font-size: 12px; color: var(--hint); }
+    .weekly-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; }
+    .weekly-rank { font-size: 14px; font-weight: 800; color: var(--primary); width: 26px; }
+    .weekly-title { flex: 1; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .weekly-votes { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
 
-    /* Loading & Empty */
-    .loading { display: flex; justify-content: center; padding: 40px; }
-    .spinner { width: 30px; height: 30px; border: 3px solid var(--secondary); border-top-color: var(--btn); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    /* ===== MAP ===== */
+    #heatmap { height: 340px; border-radius: 14px; overflow: hidden; }
+
+    /* ===== LOADING ===== */
+    .loading { display: flex; justify-content: center; padding: 50px; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .empty { text-align: center; padding: 40px 0; }
-    .empty .emoji { font-size: 40px; margin-bottom: 8px; }
-    .empty p { font-size: 13px; color: var(--hint); }
+    .empty { text-align: center; padding: 50px 0; }
+    .empty .emoji { font-size: 48px; margin-bottom: 10px; }
+    .empty p { font-size: 13px; color: var(--text-secondary); }
 
-    /* Map */
-    #heatmap { height: 280px; border-radius: 10px; overflow: hidden; }
+    /* ===== TRENDING ===== */
+    .trending { margin-bottom: 16px; }
+    .trending h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .trending-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+    .trending-scroll::-webkit-scrollbar { display: none; }
+    .trending-item {
+      flex-shrink: 0; min-width: 180px; max-width: 210px;
+      background: linear-gradient(135deg, #fef3c7, #ffe4e6);
+      border: 1px solid #fcd34d; border-radius: 14px; padding: 12px;
+      cursor: pointer; text-decoration: none; color: var(--text); transition: all 0.2s;
+    }
+    .trending-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .trending-item p { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trending-item .meta { font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-weight: 500; }
 
-    /* Page visibility */
-    .page { display: none; }
-    .page.active { display: block; }
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .main-content { margin-left: 60px; }
+      .content { padding: 14px 12px; }
+      .topbar { padding: 12px 14px; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .stat-value { font-size: 22px; }
+      .sidebar-item { font-size: 9px; padding: 8px 2px; }
+      .sidebar-item .icon { font-size: 18px; }
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: fadeIn 0.3s ease; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- HOME PAGE -->
-  <div id="page-home" class="page active">
-    <div class="header">
-      <h1>SignalAI</h1>
-      <p id="greeting">Shahardagi muammolarni xabar bering</p>
-    </div>
-    <div id="trending" class="trending"></div>
-    <div id="filters" class="filters"></div>
-    <div class="sort-bar">
-      <span id="total-count"></span>
-      <div class="sort-btns" id="sort-btns"></div>
-    </div>
-    <div id="problem-list"></div>
-  </div>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" onclick="navigate('home')">🧠</div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" id="nav-home" onclick="navigate('home')">
+        <span class="icon">📊</span>Dashboard
+      </button>
+      <button class="sidebar-item" id="nav-feed" onclick="navigate('feed')">
+        <span class="icon">📡</span>Signallar
+      </button>
+      <button class="sidebar-item" id="nav-submit" onclick="navigate('submit')">
+        <span class="icon">📝</span>Yuborish
+      </button>
+      <button class="sidebar-item" id="nav-map" onclick="navigate('map')">
+        <span class="icon">🗺️</span>Xarita
+      </button>
+    </nav>
+  </aside>
 
-  <!-- SUBMIT PAGE -->
-  <div id="page-submit" class="page">
-    <div class="header">
-      <h1>Muammo yuborish</h1>
-      <p>Shahardagi muammoni tavsiflang, AI uni tahlil qiladi</p>
+  <!-- MAIN -->
+  <div class="main-content">
+
+    <!-- ===== DASHBOARD PAGE ===== -->
+    <div id="page-home" class="page active">
+      <div class="topbar">
+        <h1 id="greeting-text">SignalAI Dashboard</h1>
+        <p>Shahardagi muammolar monitoringi</p>
+      </div>
+      <div class="content animate-in" id="dashboard-content">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
     </div>
-    <div id="submit-error"></div>
-    <form id="submit-form">
-      <div class="form-group">
-        <label>Sarlavha *</label>
-        <input type="text" id="f-title" class="form-input" placeholder="Muammoni qisqacha yozing" maxlength="300" required>
+
+    <!-- ===== FEED PAGE ===== -->
+    <div id="page-feed" class="page">
+      <div class="topbar">
+        <h1>Signallar</h1>
+        <p>Fuqarolar tomonidan yuborilgan muammolar</p>
       </div>
-      <div class="form-group">
-        <label>Tavsif *</label>
-        <textarea id="f-desc" class="form-input" placeholder="Muammoni batafsil tavsiflang..." maxlength="5000" required></textarea>
-      </div>
-      <div class="form-row form-group">
-        <div>
-          <label>Kenglik (lat)</label>
-          <input type="number" step="any" id="f-lat" class="form-input" placeholder="41.2995">
+      <div class="content animate-in">
+        <div id="trending"></div>
+        <div id="filters"></div>
+        <div class="sort-bar">
+          <span id="total-count"></span>
+          <div class="sort-btns" id="sort-btns"></div>
         </div>
-        <div>
-          <label>Uzunlik (lng)</label>
-          <input type="number" step="any" id="f-lng" class="form-input" placeholder="69.2401">
-        </div>
+        <div id="problem-list"></div>
       </div>
-      <div class="form-group">
-        <label>Rasm (ixtiyoriy)</label>
-        <input type="file" id="f-image" accept="image/*" class="form-input">
-      </div>
-      <button type="submit" id="submit-btn" class="submit-btn">Muammoni yuborish</button>
-      <p class="form-hint">AI avtomatik ravishda kategoriya, sentiment va dolzarblikni aniqlaydi</p>
-    </form>
-  </div>
-
-  <!-- DETAIL PAGE -->
-  <div id="page-detail" class="page">
-    <button class="back-btn" onclick="navigate('home')">&#8592; Orqaga</button>
-    <div id="detail-content"></div>
-  </div>
-
-  <!-- DASHBOARD PAGE -->
-  <div id="page-dashboard" class="page">
-    <div class="header">
-      <h1>Analitika</h1>
-      <p>SignalAI Dashboard</p>
     </div>
-    <div id="dashboard-content"></div>
+
+    <!-- ===== SUBMIT PAGE ===== -->
+    <div id="page-submit" class="page">
+      <div class="topbar">
+        <h1>Signal yuborish</h1>
+        <p>Shahardagi muammoni xabar bering, AI tahlil qiladi</p>
+      </div>
+      <div class="content animate-in">
+        <div id="submit-error"></div>
+        <form id="submit-form" class="card">
+          <div class="form-group">
+            <label>Sarlavha *</label>
+            <input type="text" id="f-title" class="form-input" placeholder="Muammoni qisqacha yozing" maxlength="300" required>
+          </div>
+          <div class="form-group">
+            <label>Tavsif *</label>
+            <textarea id="f-desc" class="form-input" placeholder="Muammoni batafsil tavsiflang: qayerda, qanday muammo, qancha vaqtdan beri..."></textarea>
+          </div>
+          <div class="form-row form-group">
+            <div>
+              <label>Kenglik (lat)</label>
+              <input type="number" step="any" id="f-lat" class="form-input" placeholder="41.2995">
+            </div>
+            <div>
+              <label>Uzunlik (lng)</label>
+              <input type="number" step="any" id="f-lng" class="form-input" placeholder="69.2401">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Rasm (ixtiyoriy)</label>
+            <input type="file" id="f-image" accept="image/*" class="form-input" style="padding:8px">
+          </div>
+          <button type="submit" id="submit-btn" class="submit-btn">🚀 Signal yuborish</button>
+          <p class="form-hint">🤖 AI avtomatik ravishda kategoriya, sentiment va dolzarblikni aniqlaydi</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== DETAIL PAGE ===== -->
+    <div id="page-detail" class="page">
+      <div class="topbar">
+        <h1>Signal tafsiloti</h1>
+        <p>Batafsil ma'lumot va AI tahlili</p>
+      </div>
+      <div class="content animate-in">
+        <button class="back-btn" onclick="navigate('feed')">← Orqaga</button>
+        <div id="detail-content"></div>
+      </div>
+    </div>
+
+    <!-- ===== MAP PAGE ===== -->
+    <div id="page-map" class="page">
+      <div class="topbar">
+        <h1>Muammolar xaritasi</h1>
+        <p>Toshkent shahridagi signallar joylashuvi</p>
+      </div>
+      <div class="content animate-in">
+        <div class="card">
+          <div id="heatmap"></div>
+        </div>
+        <div id="map-stats" style="margin-top:14px"></div>
+      </div>
+    </div>
+
   </div>
 </div>
-
-<!-- NAV -->
-<nav class="nav">
-  <a href="#" onclick="navigate('home')" id="nav-home" class="active">
-    <span class="icon">🏠</span>Asosiy
-  </a>
-  <a href="#" onclick="navigate('submit')" id="nav-submit">
-    <span class="icon">✏️</span>Yuborish
-  </a>
-  <a href="#" onclick="navigate('dashboard')" id="nav-dashboard">
-    <span class="icon">📊</span>Analitika
-  </a>
-</nav>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -301,12 +430,7 @@ const API = window.location.origin + '/api';
 const tg = window.Telegram?.WebApp;
 let currentUser = null;
 
-// Init Telegram
-if (tg) {
-  tg.ready();
-  tg.expand();
-  currentUser = tg.initDataUnsafe?.user;
-}
+if (tg) { tg.ready(); tg.expand(); currentUser = tg.initDataUnsafe?.user; }
 
 function getAuthHeaders() {
   const h = { 'Content-Type': 'application/json' };
@@ -319,139 +443,198 @@ let currentPage = 'home';
 
 function navigate(page, data) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(a => a.classList.remove('active'));
 
   document.getElementById('page-' + page).classList.add('active');
   const navEl = document.getElementById('nav-' + page);
   if (navEl) navEl.classList.add('active');
 
   currentPage = page;
-
-  if (page === 'home') loadProblems();
+  if (page === 'home') loadDashboard();
+  if (page === 'feed') loadProblems();
   if (page === 'detail') loadDetail(data);
-  if (page === 'dashboard') loadDashboard();
+  if (page === 'map') loadMap();
 }
 
 // ===== HELPERS =====
-const CATEGORY_EMOJI = {
-  infrastructure: '🏗️', education: '📚', healthcare: '🏥', safety: '🛡️',
-  environment: '🌿', transport: '🚌', social: '👥', government: '🏛️', other: '📋', uncategorized: '❓'
-};
-const CATEGORY_LABEL = {
-  infrastructure: 'Infratuzilma', education: "Ta'lim", healthcare: "Sog'liq", safety: 'Xavfsizlik',
-  environment: 'Atrof-muhit', transport: 'Transport', social: 'Ijtimoiy', government: 'Davlat', other: 'Boshqa', uncategorized: 'Tasniflanmagan'
-};
-const URGENCY_LABEL = { 1: 'Past', 2: "O'rta past", 3: "O'rtacha", 4: 'Yuqori', 5: 'Juda yuqori' };
-const URGENCY_COLOR = { 1: '#22c55e', 2: '#84cc16', 3: '#eab308', 4: '#f97316', 5: '#ef4444' };
-const SENTIMENT_COLOR = { positive: '#4ade80', negative: '#f87171', neutral: '#9ca3af', urgent: '#fb923c', unknown: '#d1d5db' };
-const SENTIMENT_LABEL = { positive: 'Ijobiy', negative: 'Salbiy', neutral: 'Neytral', urgent: 'Shoshilinch', unknown: 'Noma\'lum' };
+const CAT_EMOJI = { infrastructure:'🏗️', education:'📚', healthcare:'🏥', safety:'🛡️', environment:'🌿', transport:'🚌', social:'👥', government:'🏛️', other:'📋', uncategorized:'❓' };
+const CAT_LABEL = { infrastructure:'Infratuzilma', education:"Ta'lim", healthcare:"Sog'liq", safety:'Xavfsizlik', environment:'Atrof-muhit', transport:'Transport', social:'Ijtimoiy', government:'Davlat', other:'Boshqa', uncategorized:'Tasniflanmagan' };
+const URG_LABEL = { 1:'Past', 2:"O'rta past", 3:"O'rtacha", 4:'Yuqori', 5:'Juda yuqori' };
+const URG_COLOR = { 1:'#10b981', 2:'#84cc16', 3:'#eab308', 4:'#f97316', 5:'#ef4444' };
+const SENT_COLOR = { positive:'#10b981', negative:'#f43f5e', neutral:'#94a3b8', urgent:'#f59e0b', unknown:'#cbd5e1' };
+const SENT_LABEL = { positive:'Ijobiy', negative:'Salbiy', neutral:'Neytral', urgent:'Shoshilinch', unknown:"Noma'lum" };
 
 function timeAgo(d) {
   const s = Math.floor((Date.now() - new Date(d+'Z').getTime()) / 1000);
   if (s < 60) return 'hozirgina';
-  if (s < 3600) return Math.floor(s/60) + ' daqiqa oldin';
+  if (s < 3600) return Math.floor(s/60) + ' daq oldin';
   if (s < 86400) return Math.floor(s/3600) + ' soat oldin';
   if (s < 604800) return Math.floor(s/86400) + ' kun oldin';
   return new Date(d).toLocaleDateString('uz-UZ');
 }
 
-function urgencyBars(u) {
-  let html = '<div class="urgency"><div class="urgency-bars">';
-  for (let i = 1; i <= 5; i++) {
-    html += `<div class="urgency-bar ${i <= u ? 'active-' + u : ''}"></div>`;
+function urgencyHTML(u) {
+  let h = '<div class="urgency"><div class="urgency-bars">';
+  for (let i = 1; i <= 5; i++) h += `<div class="urgency-bar ${i <= u ? 'u-'+u : ''}"></div>`;
+  return h + `</div><span style="font-size:11px;font-weight:600;color:${URG_COLOR[u]}">${URG_LABEL[u]}</span></div>`;
+}
+
+function parseKW(kw) { if (!kw) return []; if (Array.isArray(kw)) return kw; try { return JSON.parse(kw); } catch { return []; } }
+
+function getGreeting() {
+  const h = new Date().getHours();
+  const name = currentUser?.first_name || '';
+  if (h < 6) return `Xayrli tun${name ? ', '+name : ''}!`;
+  if (h < 12) return `Xayrli tong${name ? ', '+name : ''}!`;
+  if (h < 18) return `Xayrli kun${name ? ', '+name : ''}!`;
+  return `Xayrli kech${name ? ', '+name : ''}!`;
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  const el = document.getElementById('dashboard-content');
+  document.getElementById('greeting-text').textContent = getGreeting();
+
+  try {
+    const [analytics, problemsRes] = await Promise.all([
+      fetch(API + '/analytics', { headers: getAuthHeaders() }).then(r => r.json()),
+      fetch(API + '/problems?sort=trending&limit=5', { headers: getAuthHeaders() }).then(r => r.json()),
+    ]);
+
+    const s = analytics.stats || {};
+    const totalSent = (analytics.sentiments || []).reduce((a, b) => a + parseInt(b.count), 0) || 1;
+
+    let html = `
+      <div class="stats-grid">
+        <div class="stat-card purple"><div class="stat-icon">📡</div><div class="stat-value">${s.total_problems || 0}</div><div class="stat-label">Jami signallar</div></div>
+        <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${s.resolved_problems || 0}</div><div class="stat-label">Hal qilingan</div></div>
+        <div class="stat-card amber"><div class="stat-icon">⏳</div><div class="stat-value">${s.open_problems || 0}</div><div class="stat-label">Kutilmoqda</div></div>
+        <div class="stat-card rose"><div class="stat-icon">📈</div><div class="stat-value">${s.new_this_week || 0}</div><div class="stat-label">Bu hafta yangi</div></div>
+      </div>
+      <div class="grid-2">`;
+
+    // Categories chart
+    html += '<div class="card"><div class="card-title">📊 Kategoriyalar</div>';
+    const maxCat = Math.max(...(analytics.categories || []).map(c => parseInt(c.count)), 1);
+    (analytics.categories || []).forEach(c => {
+      const pct = (parseInt(c.count) / maxCat) * 100;
+      html += `<div class="bar-row">
+        <span class="bar-emoji">${CAT_EMOJI[c.category] || '📋'}</span>
+        <span class="bar-label">${CAT_LABEL[c.category] || c.category}</span>
+        <div class="bar-track"><div class="bar-fill purple" style="width:${pct}%"></div></div>
+        <span class="bar-count">${c.count}</span>
+      </div>`;
+    });
+    html += '</div>';
+
+    // Sentiment
+    html += '<div class="card"><div class="card-title">💭 Sentiment tahlili</div><div class="sentiment-bar">';
+    (analytics.sentiments || []).forEach(s => {
+      const pct = (parseInt(s.count) / totalSent) * 100;
+      html += `<div style="width:${pct}%;background:${SENT_COLOR[s.sentiment] || '#cbd5e1'};transition:width 0.5s"></div>`;
+    });
+    html += '</div><div class="sentiment-legend">';
+    (analytics.sentiments || []).forEach(s => {
+      html += `<div class="sentiment-item"><div class="sentiment-dot" style="background:${SENT_COLOR[s.sentiment] || '#cbd5e1'}"></div>${SENT_LABEL[s.sentiment] || s.sentiment}: ${s.count}</div>`;
+    });
+    html += '</div></div></div>'; // close grid-2
+
+    // Weekly top + Keywords
+    html += '<div class="grid-2">';
+    if ((analytics.weeklyTop || []).length) {
+      html += '<div class="card"><div class="card-title">🔥 Haftalik top signallar</div>';
+      analytics.weeklyTop.forEach((p, i) => {
+        html += `<div class="weekly-row"><span class="weekly-rank">#${i+1}</span><span class="weekly-title">${p.title}</span><span class="weekly-votes">👍 ${p.vote_count}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    if ((analytics.topKeywords || []).length) {
+      html += '<div class="card"><div class="card-title">🏷️ Kalit so\'zlar</div><div class="keywords">';
+      analytics.topKeywords.forEach(k => { html += `<span class="keyword">${k.keyword} (${k.count})</span>`; });
+      html += '</div></div>';
+    }
+    html += '</div>';
+
+    // Recent signals
+    if ((problemsRes.problems || []).length) {
+      html += '<div class="card"><div class="card-title">📡 So\'nggi signallar</div>';
+      problemsRes.problems.slice(0, 3).forEach(p => {
+        html += `<div class="feed-card" onclick="navigate('detail',${p.id})" style="margin-bottom:8px">
+          <div class="feed-header">
+            <div class="feed-avatar">${(p.first_name || 'A')[0].toUpperCase()}</div>
+            <div><div class="feed-user">${p.first_name || 'Anonim'}</div><div class="feed-time">${timeAgo(p.created_at)}</div></div>
+          </div>
+          <div class="feed-title">${p.title}</div>
+          <div class="feed-footer">
+            <div class="feed-meta"><span class="badge badge-${p.category}">${CAT_EMOJI[p.category] || '📋'} ${CAT_LABEL[p.category] || p.category}</span></div>
+            <button class="vote-btn ${p.user_voted ? 'voted' : ''}" onclick="event.stopPropagation();doVote(${p.id},this)">👍 ${p.vote_count}</button>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div class="empty"><div class="emoji">📊</div><p>Dashboard yuklanmadi. Qayta urinib ko\'ring.</p></div>';
   }
-  html += `</div><span class="urgency-label" style="color:${URGENCY_COLOR[u]}">${URGENCY_LABEL[u]}</span></div>`;
-  return html;
 }
 
-function parseKeywords(kw) {
-  if (!kw) return [];
-  if (Array.isArray(kw)) return kw;
-  try { return JSON.parse(kw); } catch { return []; }
-}
-
-// ===== HOME PAGE =====
-let activeCategory = '';
-let activeSort = 'new';
+// ===== FEED =====
+let activeCat = '', activeSort = 'new';
 
 function buildFilters() {
-  const cats = [
-    { v: '', l: 'Barchasi' },
-    { v: 'infrastructure', l: '🏗️ Infratuzilma' }, { v: 'education', l: "📚 Ta'lim" },
-    { v: 'healthcare', l: "🏥 Sog'liq" }, { v: 'safety', l: '🛡️ Xavfsizlik' },
-    { v: 'environment', l: '🌿 Atrof-muhit' }, { v: 'transport', l: '🚌 Transport' },
-    { v: 'social', l: '👥 Ijtimoiy' }, { v: 'government', l: '🏛️ Davlat' },
-  ];
-  document.getElementById('filters').innerHTML = cats.map(c =>
-    `<button class="filter-btn ${activeCategory === c.v ? 'active' : ''}" onclick="setCategory('${c.v}')">${c.l}</button>`
-  ).join('');
-
-  const sorts = [{ v: 'new', l: 'Yangi' }, { v: 'trending', l: 'Trending' }, { v: 'urgent', l: 'Dolzarb' }];
-  document.getElementById('sort-btns').innerHTML = sorts.map(s =>
-    `<button class="sort-btn ${activeSort === s.v ? 'active' : ''}" onclick="setSort('${s.v}')">${s.l}</button>`
-  ).join('');
+  const cats = [{v:'',l:'Barchasi'},{v:'infrastructure',l:'🏗️ Infratuzilma'},{v:'education',l:"📚 Ta'lim"},{v:'healthcare',l:"🏥 Sog'liq"},{v:'safety',l:'🛡️ Xavfsizlik'},{v:'environment',l:'🌿 Atrof-muhit'},{v:'transport',l:'🚌 Transport'},{v:'social',l:'👥 Ijtimoiy'}];
+  document.getElementById('filters').innerHTML = cats.map(c => `<button class="filter-btn ${activeCat===c.v?'active':''}" onclick="setCat('${c.v}')">${c.l}</button>`).join('');
+  const sorts = [{v:'new',l:'Yangi'},{v:'trending',l:'Trending'},{v:'urgent',l:'Dolzarb'}];
+  document.getElementById('sort-btns').innerHTML = sorts.map(s => `<button class="sort-btn ${activeSort===s.v?'active':''}" onclick="setSort('${s.v}')">${s.l}</button>`).join('');
 }
-
-function setCategory(c) { activeCategory = c; buildFilters(); loadProblems(); }
+function setCat(c) { activeCat = c; buildFilters(); loadProblems(); }
 function setSort(s) { activeSort = s; buildFilters(); loadProblems(); }
 
 async function loadProblems() {
   const list = document.getElementById('problem-list');
   list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
-  if (currentUser) {
-    document.getElementById('greeting').textContent = `Salom, ${currentUser.first_name}!`;
-  }
-
   buildFilters();
 
   try {
     const params = new URLSearchParams({ sort: activeSort });
-    if (activeCategory) params.set('category', activeCategory);
-
+    if (activeCat) params.set('category', activeCat);
     const [mainRes, trendRes] = await Promise.all([
       fetch(API + '/problems?' + params, { headers: getAuthHeaders() }).then(r => r.json()),
       fetch(API + '/problems?sort=trending&limit=5', { headers: getAuthHeaders() }).then(r => r.json()),
     ]);
 
-    document.getElementById('total-count').textContent = mainRes.total + ' ta muammo';
+    document.getElementById('total-count').textContent = mainRes.total + ' ta signal';
 
     // Trending
     const trendEl = document.getElementById('trending');
-    if (trendRes.problems?.length > 0) {
-      trendEl.innerHTML = '<h3>🔥 Trending muammolar</h3><div class="trending-scroll">' +
-        trendRes.problems.slice(0, 5).map(p => `
-          <div class="trending-item" onclick="navigate('detail',${p.id})">
-            <p>${p.title}</p>
-            <div class="meta">👍 ${p.vote_count} · ${CATEGORY_LABEL[p.category] || p.category}</div>
-          </div>`).join('') + '</div>';
+    if (trendRes.problems?.length) {
+      trendEl.innerHTML = '<div class="trending"><h3>🔥 Trending signallar</h3><div class="trending-scroll">' +
+        trendRes.problems.slice(0,5).map(p => `<div class="trending-item" onclick="navigate('detail',${p.id})"><p>${p.title}</p><div class="meta">👍 ${p.vote_count} · ${CAT_LABEL[p.category]||p.category}</div></div>`).join('') + '</div></div>';
     } else { trendEl.innerHTML = ''; }
 
-    // Problem list
     if (!mainRes.problems?.length) {
-      list.innerHTML = '<div class="empty"><div class="emoji">🔍</div><p>Muammolar topilmadi</p></div>';
+      list.innerHTML = '<div class="empty"><div class="emoji">🔍</div><p>Signallar topilmadi</p></div>';
       return;
     }
 
     list.innerHTML = mainRes.problems.map(p => `
-      <div class="card" onclick="navigate('detail',${p.id})">
-        <div class="card-header">
-          <div class="card-body">
-            <div class="badges">
-              <span class="badge badge-${p.category}">${CATEGORY_EMOJI[p.category] || '📋'} ${CATEGORY_LABEL[p.category] || p.category}</span>
-              ${urgencyBars(p.urgency)}
-            </div>
-            <div class="card-title">${p.title}</div>
-            <div class="card-desc">${p.description}</div>
-          </div>
-          <button class="vote-btn ${p.user_voted ? 'voted' : ''}" onclick="event.stopPropagation();doVote(${p.id},this)">
-            👍 ${p.vote_count}
-          </button>
+      <div class="feed-card" onclick="navigate('detail',${p.id})">
+        <div class="feed-header">
+          <div class="feed-avatar">${(p.first_name||'A')[0].toUpperCase()}</div>
+          <div style="flex:1"><div class="feed-user">${p.first_name||'Anonim'}</div><div class="feed-time">${timeAgo(p.created_at)}</div></div>
+          <button class="vote-btn ${p.user_voted?'voted':''}" onclick="event.stopPropagation();doVote(${p.id},this)">👍 ${p.vote_count}</button>
         </div>
-        <div class="card-meta">
-          <span>${p.first_name || 'Anonim'}</span>
-          <span>${timeAgo(p.created_at)}</span>
-          ${p.lat ? '<span>📍 Joylashuv</span>' : ''}
+        <div class="feed-title">${p.title}</div>
+        <div class="feed-desc">${p.description}</div>
+        <div class="feed-footer">
+          <div class="feed-meta">
+            <span class="badge badge-${p.category}">${CAT_EMOJI[p.category]||'📋'} ${CAT_LABEL[p.category]||p.category}</span>
+            ${urgencyHTML(p.urgency)}
+          </div>
+          ${p.lat ? '<span class="feed-loc">📍 Joylashuv</span>' : ''}
         </div>
       </div>`).join('');
   } catch (e) {
@@ -463,11 +646,7 @@ async function loadProblems() {
 async function doVote(id, btn) {
   btn.disabled = true;
   try {
-    const res = await fetch(API + '/vote', {
-      method: 'POST', headers: getAuthHeaders(),
-      body: JSON.stringify({ problem_id: id })
-    }).then(r => r.json());
-
+    const res = await fetch(API + '/vote', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ problem_id: id }) }).then(r => r.json());
     btn.textContent = '👍 ' + res.voteCount;
     btn.classList.toggle('voted', res.voted);
     tg?.HapticFeedback?.impactOccurred('light');
@@ -481,191 +660,115 @@ document.getElementById('submit-form').addEventListener('submit', async (e) => {
   const btn = document.getElementById('submit-btn');
   const errEl = document.getElementById('submit-error');
   errEl.innerHTML = '';
-
   const title = document.getElementById('f-title').value.trim();
   const desc = document.getElementById('f-desc').value.trim();
   if (!title || !desc) { errEl.innerHTML = '<div class="error-msg">Sarlavha va tavsif to\'ldirilishi shart</div>'; return; }
-
-  btn.disabled = true;
-  btn.textContent = 'AI tahlil qilmoqda...';
-
+  btn.disabled = true; btn.textContent = '🤖 AI tahlil qilmoqda...';
   try {
     let imageUrl;
     const imageFile = document.getElementById('f-image').files[0];
     if (imageFile) {
-      const fd = new FormData();
-      fd.append('image', imageFile);
-      const h = {};
-      if (tg?.initData) h['Authorization'] = 'tma ' + tg.initData;
+      const fd = new FormData(); fd.append('image', imageFile);
+      const h = {}; if (tg?.initData) h['Authorization'] = 'tma ' + tg.initData;
       const upRes = await fetch(API + '/upload', { method: 'POST', headers: h, body: fd }).then(r => r.json());
       imageUrl = upRes.url;
     }
-
     const body = { title, description: desc };
     const lat = parseFloat(document.getElementById('f-lat').value);
     const lng = parseFloat(document.getElementById('f-lng').value);
     if (!isNaN(lat)) body.lat = lat;
     if (!isNaN(lng)) body.lng = lng;
     if (imageUrl) body.image_url = imageUrl;
-
-    await fetch(API + '/problems', {
-      method: 'POST', headers: getAuthHeaders(),
-      body: JSON.stringify(body)
-    }).then(r => { if (!r.ok) throw new Error('Xatolik'); return r.json(); });
-
+    await fetch(API + '/problems', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) }).then(r => { if (!r.ok) throw new Error(); return r.json(); });
     tg?.HapticFeedback?.notificationOccurred('success');
     document.getElementById('submit-form').reset();
-    navigate('home');
+    navigate('feed');
   } catch (err) {
     errEl.innerHTML = '<div class="error-msg">Xatolik yuz berdi. Qayta urinib ko\'ring.</div>';
     tg?.HapticFeedback?.notificationOccurred('error');
   }
-
-  btn.disabled = false;
-  btn.textContent = 'Muammoni yuborish';
+  btn.disabled = false; btn.textContent = '🚀 Signal yuborish';
 });
 
 // ===== DETAIL =====
 async function loadDetail(id) {
   const el = document.getElementById('detail-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
   try {
     const p = await fetch(API + '/problems/' + id, { headers: getAuthHeaders() }).then(r => r.json());
-    const kws = parseKeywords(p.keywords);
-
+    const kws = parseKW(p.keywords);
     el.innerHTML = `
-      <div class="detail-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div class="badges">
-            <span class="badge badge-${p.category}">${CATEGORY_EMOJI[p.category] || '📋'} ${CATEGORY_LABEL[p.category] || p.category}</span>
-            ${urgencyBars(p.urgency)}
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span class="badge badge-${p.category}">${CAT_EMOJI[p.category]||'📋'} ${CAT_LABEL[p.category]||p.category}</span>
+            ${urgencyHTML(p.urgency)}
           </div>
-          <button class="vote-btn ${p.user_voted ? 'voted' : ''}" onclick="doVote(${p.id},this)">👍 ${p.vote_count}</button>
+          <button class="vote-btn ${p.user_voted?'voted':''}" onclick="doVote(${p.id},this)">👍 ${p.vote_count}</button>
         </div>
         <h2 class="detail-title">${p.title}</h2>
         <p class="detail-desc">${p.description}</p>
-        ${p.image_url ? `<img src="${p.image_url}" style="width:100%;border-radius:10px;margin-bottom:14px;max-height:300px;object-fit:cover">` : ''}
+        ${p.image_url ? `<img src="${p.image_url}" style="width:100%;border-radius:12px;margin-bottom:16px;max-height:300px;object-fit:cover">` : ''}
         <div class="ai-box">
           <h3>🤖 AI Tahlili</h3>
           <div class="ai-grid">
-            <div class="ai-item"><span>Sentiment</span><p style="color:${SENTIMENT_COLOR[p.sentiment]}">${SENTIMENT_LABEL[p.sentiment] || p.sentiment}</p></div>
+            <div class="ai-item"><span>Sentiment</span><p style="color:${SENT_COLOR[p.sentiment]||'#94a3b8'}">${SENT_LABEL[p.sentiment]||p.sentiment}</p></div>
             <div class="ai-item"><span>Dolzarblik</span><p>${p.urgency}/5</p></div>
-            <div class="ai-item"><span>Status</span><p>${p.status}</p></div>
+            <div class="ai-item"><span>Holat</span><p>${p.status === 'open' ? 'Kutilmoqda' : p.status === 'resolved' ? 'Hal qilindi' : p.status}</p></div>
             <div class="ai-item"><span>Ovozlar</span><p>${p.vote_count}</p></div>
           </div>
           ${kws.length ? '<div class="keywords">' + kws.map(k => `<span class="keyword">${k}</span>`).join('') + '</div>' : ''}
         </div>
-        ${p.lat && p.lng ? `<div class="ai-box"><h3>📍 Joylashuv</h3><p style="font-size:12px;color:var(--hint)">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</p></div>` : ''}
-        <div style="font-size:12px;color:var(--hint);display:flex;gap:8px;margin-top:8px">
-          <span>${p.first_name || 'Anonim'}</span>
+        ${p.lat && p.lng ? `<div style="background:#f1f5f9;border-radius:12px;padding:14px;margin-bottom:14px"><strong style="font-size:13px">📍 Joylashuv</strong><p style="font-size:12px;color:var(--text-secondary);margin-top:4px">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</p></div>` : ''}
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)">
+          <div class="feed-avatar" style="width:28px;height:28px;font-size:12px">${(p.first_name||'A')[0].toUpperCase()}</div>
+          <span style="font-weight:600">${p.first_name||'Anonim'}</span>
           <span>·</span>
-          <span>${new Date(p.created_at+'Z').toLocaleDateString('uz-UZ', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+          <span>${new Date(p.created_at+'Z').toLocaleDateString('uz-UZ',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
         </div>
       </div>`;
   } catch (e) {
-    el.innerHTML = '<div class="empty"><div class="emoji">😕</div><p>Muammo topilmadi</p></div>';
+    el.innerHTML = '<div class="empty"><div class="emoji">😕</div><p>Signal topilmadi</p></div>';
   }
 }
 
-// ===== DASHBOARD =====
-async function loadDashboard() {
-  const el = document.getElementById('dashboard-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-
+// ===== MAP =====
+let mapInstance = null;
+async function loadMap() {
+  if (mapInstance) return;
   try {
-    const [analytics, problemsRes] = await Promise.all([
-      fetch(API + '/analytics', { headers: getAuthHeaders() }).then(r => r.json()),
-      fetch(API + '/problems?sort=trending', { headers: getAuthHeaders() }).then(r => r.json()),
-    ]);
-
-    const s = analytics.stats;
-    const totalSent = analytics.sentiments.reduce((a, b) => a + parseInt(b.count), 0) || 1;
-
-    let html = `
-      <div class="stats-grid">
-        <div class="stat-card"><div class="value blue">${s.total_problems}</div><div class="label">Jami muammolar</div></div>
-        <div class="stat-card"><div class="value green">${s.new_this_week}</div><div class="label">Bu hafta yangi</div></div>
-        <div class="stat-card"><div class="value orange">${parseFloat(s.avg_urgency).toFixed(1)}</div><div class="label">O'rtacha dolzarblik</div></div>
-        <div class="stat-card"><div class="value purple">${s.open_problems}</div><div class="label">Ochiq muammolar</div></div>
-      </div>`;
-
-    // Categories
-    html += '<div class="chart-card"><h2>Kategoriyalar</h2>';
-    const maxCat = Math.max(...analytics.categories.map(c => parseInt(c.count)), 1);
-    analytics.categories.forEach(c => {
-      const pct = (parseInt(c.count) / maxCat) * 100;
-      html += `<div class="bar-row">
-        <span class="bar-emoji">${CATEGORY_EMOJI[c.category] || '📋'}</span>
-        <span class="bar-label">${CATEGORY_LABEL[c.category] || c.category}</span>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-        <span class="bar-count">${c.count}</span>
-      </div>`;
-    });
-    html += '</div>';
-
-    // Sentiment
-    html += '<div class="chart-card"><h2>Sentiment tahlili</h2><div class="sentiment-bar">';
-    analytics.sentiments.forEach(s => {
-      const pct = (parseInt(s.count) / totalSent) * 100;
-      html += `<div class="sentiment-segment" style="width:${pct}%;background:${SENTIMENT_COLOR[s.sentiment] || '#d1d5db'}"></div>`;
-    });
-    html += '</div><div class="sentiment-legend">';
-    analytics.sentiments.forEach(s => {
-      html += `<div class="sentiment-item"><div class="sentiment-dot" style="background:${SENTIMENT_COLOR[s.sentiment] || '#d1d5db'}"></div>${SENTIMENT_LABEL[s.sentiment] || s.sentiment}: ${s.count}</div>`;
-    });
-    html += '</div></div>';
-
-    // Weekly top
-    if (analytics.weeklyTop?.length) {
-      html += '<div class="chart-card"><h2>🔥 Haftalik top muammolar</h2>';
-      analytics.weeklyTop.forEach((p, i) => {
-        html += `<div class="weekly-row"><span class="weekly-rank">#${i+1}</span><span class="weekly-title">${p.title}</span><span class="weekly-votes">👍 ${p.vote_count}</span></div>`;
-      });
-      html += '</div>';
-    }
-
-    // Keywords
-    if (analytics.topKeywords?.length) {
-      html += '<div class="chart-card"><h2>Kalit so\'zlar</h2><div class="keywords">';
-      analytics.topKeywords.forEach(k => {
-        html += `<span class="keyword">${k.keyword} (${k.count})</span>`;
-      });
-      html += '</div></div>';
-    }
-
-    // Heatmap
-    html += '<div class="chart-card"><h2>🗺️ Muammolar xaritasi</h2><div id="heatmap"></div></div>';
-
-    el.innerHTML = html;
-
-    // Init map
+    const res = await fetch(API + '/problems?sort=trending&limit=50', { headers: getAuthHeaders() }).then(r => r.json());
     setTimeout(() => {
       const mapEl = document.getElementById('heatmap');
-      if (!mapEl) return;
-      const map = L.map('heatmap').setView([41.2995, 69.2401], 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OSM'
-      }).addTo(map);
+      if (!mapEl || mapInstance) return;
+      mapInstance = L.map('heatmap').setView([41.2995, 69.2401], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(mapInstance);
 
-      (problemsRes.problems || []).forEach(p => {
+      let withLoc = 0;
+      (res.problems || []).forEach(p => {
         if (p.lat && p.lng) {
+          withLoc++;
           L.circleMarker([p.lat, p.lng], {
-            radius: 6 + (p.vote_count || 0) * 0.4,
-            fillColor: URGENCY_COLOR[p.urgency] || '#eab308',
-            color: '#fff', weight: 2, fillOpacity: 0.8,
-          }).addTo(map).bindPopup(`<b>${p.title}</b><br><small>${CATEGORY_LABEL[p.category] || p.category} | 👍 ${p.vote_count}</small>`);
+            radius: 7 + (p.vote_count || 0) * 0.4,
+            fillColor: URG_COLOR[p.urgency] || '#eab308',
+            color: '#fff', weight: 2, fillOpacity: 0.85,
+          }).addTo(mapInstance).bindPopup(`<b style="font-size:13px">${p.title}</b><br><small>${CAT_LABEL[p.category]||p.category} · 👍 ${p.vote_count} · Dolzarblik: ${p.urgency}/5</small>`);
         }
       });
-    }, 100);
 
-  } catch (e) {
-    el.innerHTML = '<div class="empty"><div class="emoji">🔒</div><p>' + (e.message || 'Analitika yuklanmadi') + '</p><p style="font-size:11px;color:var(--hint);margin-top:4px">Admin ruxsati kerak</p></div>';
-  }
+      // Stats under map
+      document.getElementById('map-stats').innerHTML = `
+        <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="stat-card purple"><div class="stat-value">${res.total || 0}</div><div class="stat-label">Jami signallar</div></div>
+          <div class="stat-card green"><div class="stat-value">${withLoc}</div><div class="stat-label">Joylashuvli</div></div>
+          <div class="stat-card amber"><div class="stat-value">${(res.problems||[]).filter(p=>p.urgency>=4).length}</div><div class="stat-label">Yuqori dolzarb</div></div>
+        </div>`;
+    }, 100);
+  } catch (e) { console.error(e); }
 }
 
 // ===== INIT =====
-loadProblems();
+loadDashboard();
 </script>
 </body>
 </html>
