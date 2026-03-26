@@ -64,15 +64,25 @@ async function start() {
       );
     });
 
-    bot.launch().then(() => {
-      console.log('SignalAI Bot is running!');
+    bot.catch((err: any) => {
+      console.error('Bot error:', err);
     });
+
+    bot.launch()
+      .then(() => console.log('SignalAI Bot is running!'))
+      .catch((err) => console.error('Bot launch failed:', err));
 
     process.once('SIGINT', () => { saveDB(); bot.stop('SIGINT'); });
     process.once('SIGTERM', () => { saveDB(); bot.stop('SIGTERM'); });
   } else {
     console.warn('BOT_TOKEN not set, bot is disabled');
   }
+
+  console.log('BOT_TOKEN:', config.botToken ? 'SET (' + config.botToken.slice(0, 5) + '...)' : 'NOT SET');
+  console.log('WEBAPP_URL:', config.webappUrl);
 }
 
-start().catch(console.error);
+start().catch((err) => {
+  console.error('FATAL start error:', err);
+  process.exit(1);
+});
